@@ -7,6 +7,7 @@ fn main() {
         std::fs::create_dir_all(out_dir).unwrap();
     }
 
+
     println!("cargo:rerun-if-changed=allocators/*");
     println!("cargo:warning=Creating jemalloc");
     if !Path::new("./allocators/jemalloc/Makefile").exists() {

@@ -1,10 +1,8 @@
-include ../Makefile.inc
-
 TARGET = build
 
 .PHONY: build
 build:
-	$(call create_make,CC,t-test1)
+	$(CC) -g -c t-test1.c -I../common
 
 clean:
 	rm -f CC-*

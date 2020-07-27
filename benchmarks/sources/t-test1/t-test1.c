@@ -16,8 +16,14 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 
+
 #if !USE_MALLOC
+#ifndef __APPLE__
+// Darwin doesn't include this header file
 #include <malloc.h>
+#else
+#include <stdlib.h>
+#endif
 #else
 #include "malloc-2.8.3.h"
 #endif
