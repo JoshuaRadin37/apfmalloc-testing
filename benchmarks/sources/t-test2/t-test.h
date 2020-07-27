@@ -16,6 +16,19 @@
 #define REALLOC_MAX	2000
 #endif
 
+#ifdef __APPLE__
+int posix_memalign(void **memptr, size_t alignment, size_t size);
+static void *memalign(size_t alignment, size_t size) {
+	void* output;
+	int code = posix_memalign(&output, alignment, size);
+	if (code != 0) {
+		exit(code);
+	}
+	return output;
+}
+#endif
+
+
 struct bin {
 	unsigned char *ptr;
 	unsigned long size;

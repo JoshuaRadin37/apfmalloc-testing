@@ -20,7 +20,7 @@
 // Darwin doesn't include this header file
 #include <malloc.h>
 #else
-#include <stdlib.h>
+
 #endif
 #else
 #include "malloc-2.8.3.h"

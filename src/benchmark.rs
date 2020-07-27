@@ -3,21 +3,33 @@ use std::ffi::OsString;
 use std::collections::HashMap;
 use std::fs::{ReadDir, DirEntry, File};
 use std::io::{Error, ErrorKind};
-use std::process::Command;
+use std::process::{Command, exit, ExitStatus};
 use std::ops::Deref;
 use std::fmt::Debug;
 use std::thread::panicking;
+use crate::BINARY_DIR;
 
 pub struct Benchmark {
     src_dir: PathBuf,
     benchmark_name: OsString
 }
 
-const BINARY_DIR: &str = "./benchmarks/bin";
 const OBJECT_DIR: &str = "./benchmarks/objects";
 const LIBRARY_DIR: &str = "./allocators/target";
 const BENCHMARK_DIR: &str = "./benchmarks/sources";
 const COMMON_DIR: &str = "common";
+
+#[derive(Debug)]
+pub enum BenchmarkError {
+    IO(std::io::Error),
+    ExitStatus(ExitStatus)
+}
+
+impl From<std::io::Error> for BenchmarkError{
+    fn from(e: Error) -> Self {
+        BenchmarkError::IO(e)
+    }
+}
 
 impl Benchmark {
     pub fn new<P : Deref<Target=Path> + Debug>(path: P) -> Self {
@@ -142,7 +154,7 @@ impl Benchmark {
     /// Creates all of the benchmark binaries for each allocator
     ///
     /// Returns an error if it could not successfully create the binary files
-    pub fn create_binaries_for(self, allocators: &Vec<Option<String>>) -> Result<(), std::io::Error> {
+    pub fn create_binaries_for(self, allocators: &Vec<Option<String>>) -> Result<(), BenchmarkError> {
         Self::create_bin_dir();
 
         let object_file = {
@@ -152,23 +164,40 @@ impl Benchmark {
         };
 
         if !object_file.exists() {
-            return Err(std::io::Error::last_os_error())
+            return Err(BenchmarkError::IO(std::io::Error::last_os_error()));
         }
 
         for allocator in allocators {
-            let mut build = cc::Build::new();
-            build.object(&object_file);
-            build.static_flag(true);
-            if let Some(allocator) = allocator {
-                build.flag(format!("-L{}", LIBRARY_DIR).as_str());
-                build.flag(format!("-l{}", allocator).as_str());
-            }
+
             let allocator = allocator.as_ref().map_or(String::from("libc"), |a| a.clone());
 
             let output = format!("{}-{}", self.benchmark_name.to_str().unwrap(), allocator);
             let mut output_path = PathBuf::from(BINARY_DIR);
             output_path.push(output);
-            build.compile(output_path.to_str().unwrap());
+
+            let lib_args: Vec<String> = if allocator != "libc" {
+                vec![
+                    format!("-L{}", LIBRARY_DIR),
+                    format!("-l{}", allocator)
+                ]
+            } else {
+                vec![]
+            };
+
+            let run =
+                Command::new("cc")
+                    .args(&["-o", output_path.to_str().unwrap()])
+                    .arg(object_file.to_str().unwrap())
+                    .args(lib_args)
+                    .status();
+
+
+            let exit_code = run?;
+            let ret_val = exit_code.success();
+            if !ret_val {
+                return Err(BenchmarkError::ExitStatus(exit_code));
+            }
+
         }
 
         Ok(())

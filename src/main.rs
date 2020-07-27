@@ -2,9 +2,11 @@ use clap::{App, Arg, Values};
 use std::process::{Command, exit};
 use std::ffi::OsString;
 use crate::benchmark::Benchmark;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
+use std::io::Error;
 
 static AVAILABLE_ALLOCATORS: [&str; 3] = ["libc", "lrmalloc.rs", "jemalloc"];
+const BINARY_DIR: &str = "./benchmarks/bin";
 
 mod benchmark;
 
@@ -49,6 +51,22 @@ fn main() {
     // println!("Current directory: {:?}", std::env::current_dir());
 
     let verbose = matches.is_present("verbose");
+    macro_rules! vprint {
+        ($($tokens:tt),+) => {
+            if verbose {
+                print!($($tokens),+)
+            }
+        };
+    }
+    macro_rules! vprintln {
+        () => {
+            vprint!("\n")
+        };
+        ($($tokens:tt),*) => {
+            vprint!($($tokens),*);
+            vprint!("\n")
+        }
+    }
 
     if matches.subcommand_matches("clean").is_some() {
         let cmd = Command::new("find")
@@ -62,7 +80,7 @@ fn main() {
             .split_whitespace()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
-        println!("Files to remove: {:?}", files);
+        vprintln!("Files to remove: {:?}", files);
 
         Command::new("rm").current_dir("./allocators/target").args(files).spawn().unwrap();
 
@@ -70,6 +88,41 @@ fn main() {
         Command::new("rm").current_dir("./allocators/jemalloc/lib").arg("libjemalloc.a").spawn().unwrap();
         return;
     }
+
+    let out_dir = Path::new("./allocators/target");
+    if !Path::new("./allocators/jemalloc/Makefile").exists() {
+        vprintln!("Configuring jemalloc...");
+        Command::new("./configure")
+            .current_dir("./allocators/jemalloc")
+            .arg("--without-export")
+            .arg("--disable-zone-allocator")
+            .spawn()
+            .unwrap();
+    }
+    Command::new("make")
+        .current_dir("./allocators/jemalloc")
+        .arg("build_lib_static")
+        .status()
+        .unwrap();
+    Command::new("cp")
+        .arg("./allocators/jemalloc/lib/libjemalloc.a")
+        .arg(out_dir.to_str().unwrap())
+        .status()
+        .unwrap();
+
+    vprintln!("Creating lrmalloc.rs");
+
+    Command::new("cargo")
+        .arg("build")
+        .arg("--manifest-path")
+        .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+        .status()
+        .unwrap();
+    Command::new("cp")
+        .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
+        .arg(out_dir.to_str().unwrap())
+        .status()
+        .unwrap();
 
 
 
@@ -91,9 +144,10 @@ fn main() {
     };
 
     let available_benchmarks = benchmark::get_available_benchmarks().unwrap();
-    if verbose {
-        println!("All available benchmarks = {:?}", available_benchmarks);
-    }
+    vprintln!("All available benchmarks = {:?}", available_benchmarks);
+
+
+    //std::env::set_var("OUT_DIR", BINARY_DIR);
 
     let benchmarks = matches.values_of("benchmark");
     let running_benchmarks: Vec<_> =
@@ -124,8 +178,16 @@ fn main() {
 
     for benchmark in running_benchmarks {
         benchmark.create_object_file();
-        benchmark.create_binaries_for(&allocator_libs);
+        match benchmark.create_binaries_for(&allocator_libs) {
+            Ok(_) => {},
+            Err(e) => {
+                eprintln!("{:?}", e);
+                exit(3);
+            },
+        }
     }
+
+
 
 }
 

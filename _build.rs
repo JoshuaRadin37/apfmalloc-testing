@@ -1,8 +1,9 @@
 use std::process::Command;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn main() {
-    let out_dir = Path::new("./allocators/target");
+    let mut out_dir = PathBuf::from(env!("OUT_DIR"));
+    out_dir.push("allocators");
     if !out_dir.exists() {
         std::fs::create_dir_all(out_dir).unwrap();
     }
@@ -31,6 +32,7 @@ fn main() {
         .unwrap();
 
     println!("cargo:warning=Creating lrmalloc.rs");
+
     Command::new("cargo")
         .arg("build")
         .arg("--manifest-path")
