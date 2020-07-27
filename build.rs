@@ -1,14 +1,13 @@
 use std::process::Command;
 use std::path::Path;
-use std::fs::DirEntry;
 
 fn main() {
     let out_dir = Path::new("./allocators/target");
     if !out_dir.exists() {
-        std::fs::create_dir_all(out_dir);
+        std::fs::create_dir_all(out_dir).unwrap();
     }
 
-    //println!("cargo:rerun-if-changed=allocators/*");
+    println!("cargo:rerun-if-changed=allocators/*");
     println!("cargo:warning=Creating jemalloc");
     if !Path::new("./allocators/jemalloc/Makefile").exists() {
         println!("cargo:warning=Configuring jemalloc...");
@@ -26,7 +25,7 @@ fn main() {
         .unwrap();
     Command::new("cp")
         .arg("./allocators/jemalloc/lib/libjemalloc.a")
-        .arg("./allocators/target/")
+        .arg(out_dir.to_str().unwrap())
         .status()
         .unwrap();
 
@@ -35,6 +34,11 @@ fn main() {
         .arg("build")
         .arg("--manifest-path")
         .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+        .status()
+        .unwrap();
+    Command::new("cp")
+        .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
+        .arg(out_dir.to_str().unwrap())
         .status()
         .unwrap();
 
