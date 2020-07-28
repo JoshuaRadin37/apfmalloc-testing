@@ -148,6 +148,14 @@ fn main() {
     let out_dir = Path::new("./allocators/target");
     if !Path::new("./allocators/jemalloc/Makefile").exists() {
         vprintln!("Configuring jemalloc...");
+        
+        if !Path::new("./allocators/jemalloc/configure").exists() {
+            Command::new("./autogen.sh")
+                .current_dir("./allocators/jemalloc")
+                .status()
+                .unwrap();
+        }
+        
         match Command::new("./configure")
             .current_dir("./allocators/jemalloc")
             .arg("--without-export")
@@ -169,9 +177,11 @@ fn main() {
             .arg("build_lib_static")
             .status()
             .unwrap();
+        let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+        dest_path.push("ibjemalloc.a");
         Command::new("cp")
             .arg("./allocators/jemalloc/lib/libjemalloc.a")
-            .arg(out_dir.to_str().unwrap())
+            .arg(dest_path.to_str().unwrap())
             .status()
             .unwrap();
     }
@@ -184,9 +194,11 @@ fn main() {
             .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
             .status()
             .unwrap();
+        let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+        dest_path.push("liblrmalloc_rs_global.a");
         Command::new("cp")
             .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
-            .arg(out_dir.to_str().unwrap())
+            .arg(dest_path.to_str().unwrap())
             .status()
             .unwrap();
     }
