@@ -1,5 +1,5 @@
 use clap::{App, Arg, Values};
-use std::process::{Command, exit};
+use std::process::{Command, exit, Child};
 use std::ffi::OsString;
 use crate::benchmark::Benchmark;
 use std::path::{PathBuf, Path};
@@ -22,7 +22,25 @@ mod age_checker;
 
 static DEBUG_MODE: AtomicBool = AtomicBool::new(false);
 
+macro_rules! dict {
+    ($($key:expr => $value:expr),*) => {
+        {
+            let mut ret = std::collections::HashMap::new();
+            $(ret.insert($key, $value);)*
+            ret
+        }
+    };
+    ($($key:expr => $value:expr),*,) => {
+        dict![$($key => $value),*]
+    };
+}
+
 fn main() {
+
+    let benchmark_param_list = dict![
+        "t-test1"=> "10 {} 10000 10000 400",
+        "t-test2"=> "10 {} 10000 10000 400",
+    ];
 
 
 
@@ -54,15 +72,28 @@ fn main() {
                 .long("verbose")
                 .about("Shows verbose output")
                 .takes_value(false)
-        ).arg(
-        Arg::new("debug")
-            .long("debug")
-            .about("Generate debug symbols in output")
-            .takes_value(false)
-    ).subcommand(
-        App::new("clean")
-            .about("Cleans the allocators, forcing a remake of the allocators")
-    ).get_matches();
+        )
+        .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .short('d')
+                .about("Generate debug symbols in output")
+                .takes_value(false)
+        )
+        .arg(
+            Arg::new("threads")
+                .long("threads")
+                .short('t')
+                .about("The maximum number of threads to test")
+                .takes_value(true)
+                .number_of_values(1)
+                .default_value("16")
+        )
+        .subcommand(
+            App::new("clean")
+                .about("Cleans the allocators, forcing a remake of the allocators")
+        )
+        .get_matches();
 
     // println!("Current directory: {:?}", std::env::current_dir());
 
@@ -107,22 +138,32 @@ fn main() {
 
         Command::new("cargo").current_dir("./allocators/lrmalloc.rs").arg("clean").spawn().unwrap();
         Command::new("rm").current_dir("./allocators/jemalloc/lib").arg("libjemalloc.a").spawn().unwrap();
+        let _ = Command::new("make")
+            .current_dir("./allocators/jemalloc")
+            .arg("distclean")
+            .spawn();
         return;
     }
 
     let out_dir = Path::new("./allocators/target");
     if !Path::new("./allocators/jemalloc/Makefile").exists() {
         vprintln!("Configuring jemalloc...");
-        let _ = Command::new("./configure")
+        match Command::new("./configure")
             .current_dir("./allocators/jemalloc")
             .arg("--without-export")
             .arg("--disable-zone-allocator")
-            .spawn();
+            .spawn() {
+            Ok(_) => {},
+            Err(_) => {},
+        }
     }
 
 
     if should_build("jemalloc") {
         vprintln!("Building jemalloc");
+        while !Path::new("./allocators/jemalloc/Makefile").exists() {
+
+        }
         Command::new("make")
             .current_dir("./allocators/jemalloc")
             .arg("build_lib_static")
@@ -195,15 +236,18 @@ fn main() {
 
 
     let allocator_libs: Vec<Option<String>> =
-        allocators.into_iter().map(|s|
-            get_allocator_lib_file(s))
+        allocators.iter().map(|s|
+            get_allocator_lib_file(*s))
             .map(|o|
                 o.map(|s| s.to_string())
             )
             .collect();
 
+    let max_threads: usize = matches.value_of("threads").unwrap().parse().expect("Invalid value for --threads entry");
+
     for benchmark in running_benchmarks {
         benchmark.create_object_file();
+        let name = benchmark.get_name();
         match benchmark.create_binaries_for(&allocator_libs) {
             Ok(_) => {},
             Err(e) => {
@@ -211,7 +255,45 @@ fn main() {
                 exit(3);
             },
         }
+
+        for allocator in &allocators {
+            let binary_name = format!("{}-{}", name, get_allocator_lib_file(*allocator).unwrap_or("libc"));
+
+            let mut binary_path = PathBuf::from(BINARY_DIR);
+            binary_path.push(binary_name.clone());
+
+            if !binary_path.exists() {
+                panic!("Binary {} does not exist!", binary_name);
+            }
+
+            for thread_count in 1..=max_threads {
+                let params = benchmark_param_list[name.as_str()];
+                let args =
+                    params.replace("{}", & *thread_count.to_string())
+                        .split_whitespace()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>();
+
+                println!("Running {}", binary_path.as_path().file_name().unwrap().to_str().unwrap());
+
+                let status =
+                    Command::new(binary_path.to_str().unwrap())
+                        .args(args)
+                        .status()
+                        .unwrap();
+
+                println!("Program exited with status {}", status);
+                if !status.success() {
+                    eprintln!("Program failed!");
+                    exit(status.code().unwrap_or(-1))
+                }
+            }
+        }
+
+
     }
+
+
 
 }
 

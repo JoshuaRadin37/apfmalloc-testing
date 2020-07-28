@@ -211,6 +211,10 @@ impl Benchmark {
 
         Ok(())
     }
+
+    pub fn get_name(&self) -> String {
+        self.benchmark_name.to_str().unwrap().to_string()
+    }
 }
 
 pub fn get_available_benchmarks() -> Result<Vec<OsString>, std::io::Error> {
