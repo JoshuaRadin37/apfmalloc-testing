@@ -4,11 +4,23 @@ use std::ffi::OsString;
 use crate::benchmark::Benchmark;
 use std::path::{PathBuf, Path};
 use std::io::Error;
+use std::cell::RefCell;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use crate::age_checker::should_build;
 
-static AVAILABLE_ALLOCATORS: [&str; 3] = ["libc", "lrmalloc.rs", "jemalloc"];
+static AVAILABLE_ALLOCATORS: [&str; 3] =
+    [
+        "libc",
+        "lrmalloc.rs",
+        "jemalloc"
+    ];
 const BINARY_DIR: &str = "./benchmarks/bin";
 
 mod benchmark;
+mod age_checker;
+
+static DEBUG_MODE: AtomicBool = AtomicBool::new(false);
 
 fn main() {
 
@@ -42,15 +54,24 @@ fn main() {
                 .long("verbose")
                 .about("Shows verbose output")
                 .takes_value(false)
-        )
-        .subcommand(
-            App::new("clean")
-                .about("Cleans the allocators, forcing a remake of the allocators")
-        ).get_matches();
+        ).arg(
+        Arg::new("debug")
+            .long("debug")
+            .about("Generate debug symbols in output")
+            .takes_value(false)
+    ).subcommand(
+        App::new("clean")
+            .about("Cleans the allocators, forcing a remake of the allocators")
+    ).get_matches();
 
     // println!("Current directory: {:?}", std::env::current_dir());
 
     let verbose = matches.is_present("verbose");
+
+    if matches.is_present("debug") {
+        DEBUG_MODE.store(true, Ordering::Release);
+    }
+
     macro_rules! vprint {
         ($($tokens:tt),+) => {
             if verbose {
@@ -92,37 +113,42 @@ fn main() {
     let out_dir = Path::new("./allocators/target");
     if !Path::new("./allocators/jemalloc/Makefile").exists() {
         vprintln!("Configuring jemalloc...");
-        Command::new("./configure")
+        let _ = Command::new("./configure")
             .current_dir("./allocators/jemalloc")
             .arg("--without-export")
             .arg("--disable-zone-allocator")
-            .spawn()
+            .spawn();
+    }
+
+
+    if should_build("jemalloc") {
+        vprintln!("Building jemalloc");
+        Command::new("make")
+            .current_dir("./allocators/jemalloc")
+            .arg("build_lib_static")
+            .status()
+            .unwrap();
+        Command::new("cp")
+            .arg("./allocators/jemalloc/lib/libjemalloc.a")
+            .arg(out_dir.to_str().unwrap())
+            .status()
             .unwrap();
     }
-    Command::new("make")
-        .current_dir("./allocators/jemalloc")
-        .arg("build_lib_static")
-        .status()
-        .unwrap();
-    Command::new("cp")
-        .arg("./allocators/jemalloc/lib/libjemalloc.a")
-        .arg(out_dir.to_str().unwrap())
-        .status()
-        .unwrap();
 
-    vprintln!("Creating lrmalloc.rs");
-
-    Command::new("cargo")
-        .arg("build")
-        .arg("--manifest-path")
-        .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
-        .status()
-        .unwrap();
-    Command::new("cp")
-        .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
-        .arg(out_dir.to_str().unwrap())
-        .status()
-        .unwrap();
+    if should_build("lrmalloc.rs") {
+        vprintln!("Creating lrmalloc.rs");
+        Command::new("cargo")
+            .arg("build")
+            .arg("--manifest-path")
+            .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+            .status()
+            .unwrap();
+        Command::new("cp")
+            .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
+            .arg(out_dir.to_str().unwrap())
+            .status()
+            .unwrap();
+    }
 
 
 
@@ -187,8 +213,12 @@ fn main() {
         }
     }
 
+}
 
 
+
+fn is_debug() -> bool {
+    DEBUG_MODE.load(Ordering::Acquire)
 }
 
 fn get_allocator_lib_file(allocator_name: &str) -> Option<&str> {

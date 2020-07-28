@@ -18,14 +18,9 @@
 
 #ifdef __APPLE__
 #include <stdlib.h>
-int posix_memalign(void **memptr, size_t alignment, size_t size);
+void* aligned_alloc(size_t alignment, size_t size);
 static void *memalign(size_t alignment, size_t size) {
-	void* output;
-	int code = posix_memalign(&output, alignment, size);
-	if (code != 0) {
-		exit(code);
-	}
-	return output;
+	return aligned_alloc(alignment, size);
 }
 #endif
 

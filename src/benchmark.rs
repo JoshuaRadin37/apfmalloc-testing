@@ -7,7 +7,7 @@ use std::process::{Command, exit, ExitStatus};
 use std::ops::Deref;
 use std::fmt::Debug;
 use std::thread::panicking;
-use crate::BINARY_DIR;
+use crate::{BINARY_DIR, is_debug};
 
 pub struct Benchmark {
     src_dir: PathBuf,
@@ -15,7 +15,7 @@ pub struct Benchmark {
 }
 
 const OBJECT_DIR: &str = "./benchmarks/objects";
-const LIBRARY_DIR: &str = "./allocators/target";
+pub const LIBRARY_DIR: &str = "./allocators/target";
 const BENCHMARK_DIR: &str = "./benchmarks/sources";
 const COMMON_DIR: &str = "common";
 
@@ -128,11 +128,20 @@ impl Benchmark {
         Self::create_objects_dir();
 
         // Runs the make file in the benchmark folder
-        if !Command::new("make")
-            .current_dir(&self.src_dir)
-            .status()?
-            .success() {
-            panic!("Failed to create object file for {:?}", self.benchmark_name)
+        if is_debug() {
+            if !Command::new("make build_debug")
+                .current_dir(&self.src_dir)
+                .status()?
+                .success() {
+                panic!("Failed to create object file for {:?}", self.benchmark_name)
+            }
+        } else {
+            if !Command::new("make build")
+                .current_dir(&self.src_dir)
+                .status()?
+                .success() {
+                panic!("Failed to create object file for {:?}", self.benchmark_name)
+            }
         }
 
         // Create the object file
