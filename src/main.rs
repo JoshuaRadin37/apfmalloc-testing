@@ -178,7 +178,7 @@ fn main() {
             .status()
             .unwrap();
         let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-        dest_path.push("ibjemalloc.a");
+        dest_path.push("libjemalloc.a");
         Command::new("cp")
             .arg("./allocators/jemalloc/lib/libjemalloc.a")
             .arg(dest_path.to_str().unwrap())
