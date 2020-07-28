@@ -1,6 +1,6 @@
 [submodule "allocators/jemalloc"]
 	path = allocators/jemalloc
-	url = https://github.com/jemalloc/jemalloc.git
+	url = https://github.com/JoshuaRadin37/jemalloc.git
 	branch = master
 [submodule "allocators/lrmalloc.rs"]
 	path = allocators/lrmalloc.rs
