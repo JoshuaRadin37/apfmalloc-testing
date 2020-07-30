@@ -13,6 +13,10 @@ use plotters::style::text_anchor::{HPos, Pos, VPos};
 use random_color::{Luminosity, RandomColor};
 
 use crate::benchmark::Benchmark;
+use lazy_static::lazy_static;
+
+use std::time::Instant;
+use chrono::Local;
 
 pub struct Graph<'a> {
     benchmark: String,
@@ -22,10 +26,19 @@ pub struct Graph<'a> {
 
 const GRAPHS_DIR: &str = "./graphs";
 
+lazy_static! {
+    pub static ref NEW_DIR: String = format!(
+        "results_{}",
+        Local::now().timestamp()
+    );
+}
+
+
 fn generate_graph_path(benchmark_name: &str) -> PathBuf {
     let graph_name = format!("{}.png", benchmark_name);
-    std::fs::create_dir_all(GRAPHS_DIR);
-    PathBuf::from_iter(&[GRAPHS_DIR, & *graph_name])
+    let path =  PathBuf::from_iter(&[GRAPHS_DIR, &*NEW_DIR]);
+    std::fs::create_dir_all(path);
+    PathBuf::from_iter(&[GRAPHS_DIR, &*NEW_DIR, & *graph_name])
 }
 
 impl <'a> Graph<'a> {
@@ -67,7 +80,7 @@ impl <'a> Graph<'a> {
         let path = generate_graph_path(&*self.benchmark);
         let root = BitMapBackend::new(
             &path,
-            (720, 600)
+            (900, 600)
         ).into_drawing_area();
         let root = root.margin(10, 10, 10, 10);
         root.fill(&WHITE);
@@ -86,7 +99,7 @@ impl <'a> Graph<'a> {
 
         chart
             .configure_mesh()
-            .x_labels(self.num_threads)
+            .x_labels(self.num_threads / 10)
             .y_labels(labels)
             .x_desc("Number of Threads")
             .y_desc("Throughput")
