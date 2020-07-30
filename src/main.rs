@@ -11,6 +11,9 @@ use crate::age_checker::should_build;
 use std::fs::{File, OpenOptions};
 use std::iter::FromIterator;
 use std::io::Write;
+use std::time::{Duration, Instant};
+use std::str::from_utf8;
+use std::collections::HashMap;
 
 static AVAILABLE_ALLOCATORS: [&str; 3] =
     [
@@ -306,8 +309,9 @@ fn main() {
             },
         }
 
-
+        let mut results = HashMap::new();
         for allocator in &allocators {
+
             let binary_name = format!("{}-{}", name, get_allocator_lib_file(*allocator).unwrap_or("libc"));
 
             let mut binary_path = PathBuf::from(BINARY_DIR);
@@ -347,21 +351,47 @@ fn main() {
                 let mut sum_throughput = 0.0;
                 const NUM_TRIALS: usize = 3;
                 for i in 0..NUM_TRIALS {
+                    writeln!(
+                        &mut writer,
+                        "---- ))Start Iteration {} ----",
+                        i
+                    ).unwrap();
 
-
-
-                    let status =
+                    let start = Instant::now();
+                    let output =
                         Command::new(binary_path.to_str().unwrap())
                             .args(args.clone())
-                            .status()
+                            .output()
                             .unwrap();
 
-                    println!("Program exited with status {}", status);
-                    if !status.success() {
-                        eprintln!("Program failed!");
-                        exit(status.code().unwrap_or(-1))
-                    }
+                    let duration = start.elapsed();
+                    let output = from_utf8(&*output.stdout).expect("Output not in utf-8");
+                    println!("{}", output);
+                    writeln!(
+                        &mut writer,
+                        "{}",
+                        output
+                    ).unwrap();
+
+                    let throughput = 1.0 / duration.as_secs_f64();
+                    writeln!(
+                        &mut writer,
+                        "Throughput: {}",
+                        throughput
+                    ).unwrap();
+                    sum_throughput += throughput;
                 }
+                let average = sum_throughput/(NUM_TRIALS as f64);
+                writeln!(
+                    &mut writer,
+                    "#### Average Throughput: {} ####",
+                    average
+                ).unwrap();
+                results.insert(*allocator, average);
+                writeln!(
+                    &mut writer,
+                    "-------------- [END] --------------"
+                ).unwrap();
             }
         }
 
