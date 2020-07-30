@@ -95,11 +95,19 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 #endif
 	r %= 1024;
 	/*printf("%d ", r);*/
-	if(r < 4) { /* memalign */
+	
+	if(r < 4) { // memalign
 		if(m->size > 0) free(m->ptr);
-		m->ptr = (unsigned char *)memalign(sizeof(int) << r, size);
-	} else if(r < 20) { /* calloc */
+		size_t alignment = sizeof(size_t) << r;
+		if (size % alignment != 0) {
+			// printf("Size %ld is not a multiple of alignment %ld! (r = %ld)\n", size, alignment, r);
+			size += alignment - size % alignment;
+			// printf("Size adjusted to %ld to match aligned allocation requirements\n", size);
+		}
+		m->ptr = (unsigned char *)memalign(alignment, size);
+	} else if(r < 20) { // calloc
 		if(m->size > 0) free(m->ptr);
+		
 		m->ptr = (unsigned char *)calloc(size, 1);
 #if TEST > 0
 		if(zero_check((unsigned*)m->ptr, size)) {
@@ -111,13 +119,34 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 			exit(1);
 		}
 #endif
-	} else if(r < 100 && m->size < REALLOC_MAX) { /* realloc */
+	} else if(r < 100 && m->size < REALLOC_MAX) { // realloc
 		if(m->size == 0) m->ptr = NULL;
 		m->ptr = realloc(m->ptr, size);
-	} else { /* plain malloc */
+	} else { // plain malloc
 		if(m->size > 0) free(m->ptr);
 		m->ptr = (unsigned char *)malloc(size);
 	}
+	
+	/*
+	if(m->size > 0) free(m->ptr);
+	if (r < 4)
+	{
+		size_t alignment = sizeof(size_t) << r;
+		if ((alignment != 1) && (alignment & (alignment - 1))) {
+			printf("Alignment %ld not a power of 2!\n", alignment);
+		} else if (alignment < sizeof(size_t)) {
+			printf("Alignment %ld less than the min alignment! (r = %d, sizeof(int) = %ld)\n", alignment, r, sizeof(int));
+		} else if (size % alignment != 0) {
+			printf("Size %ld is not a multiple of alignment %ld! (r = %ld)\n", size, alignment, r);
+			size += alignment - size % alignment;
+		}
+		m->ptr = (unsigned char *) memalign(alignment, size);
+	} else {
+		m->ptr = (unsigned char *) malloc(size);
+	}
+	 */
+	
+	
 	if(!m->ptr) {
 		printf("out of memory (r=%d, size=%ld)!\n", r, (long)size);
 		exit(1);

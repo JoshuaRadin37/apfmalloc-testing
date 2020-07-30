@@ -150,10 +150,13 @@ impl Benchmark {
         let mut origin = self.src_dir.clone();
         origin.push(Path::new(&self.get_object_file()));
 
+        let mut dest_path = PathBuf::from(OBJECT_DIR);
+        dest_path.push(&self.get_object_file());
+
         // Move the object file to the objects folder
         if !Command::new("mv")
             .arg(origin)
-            .arg(OBJECT_DIR)
+            .arg(dest_path)
             .status()?
             .success() {
             panic!("Failed to move file");
@@ -198,7 +201,7 @@ impl Benchmark {
             let run =
                 Command::new("cc")
                     .args(&["-o", output_path.to_str().unwrap()])
-                    .arg("-Wl,--no-as-needed")
+                    // .arg("-Wl,--no-as-needed")
                     .arg("-ldl")
                     .arg(object_file.to_str().unwrap())
                     .args(lib_args)

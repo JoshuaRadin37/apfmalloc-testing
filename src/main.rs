@@ -199,7 +199,7 @@ fn main() {
         dest_path.push("libjemalloc.a");
         Command::new("cp")
             .arg("./allocators/jemalloc/lib/libjemalloc.a")
-            .arg(dest_path.to_str().unwrap())
+            .arg(dest_path)
             .status()
             .unwrap();
     }
@@ -291,7 +291,7 @@ fn main() {
     let max_threads: usize = matches.value_of("threads").unwrap().parse().expect("Invalid value for --threads entry");
 
     for benchmark in running_benchmarks {
-        benchmark.create_object_file();
+        benchmark.create_object_file().unwrap();
         let name = benchmark.get_name();
         match benchmark.create_binaries_for(&allocator_libs) {
             Ok(_) => {},
