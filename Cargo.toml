@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 clap = "3.0.0-beta.1"
+plotters = "0.2.15"
+random_color = "0.4.4"

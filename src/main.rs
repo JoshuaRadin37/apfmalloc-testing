@@ -14,6 +14,7 @@ use std::io::Write;
 use std::time::{Duration, Instant};
 use std::str::from_utf8;
 use std::collections::HashMap;
+use crate::grapher::Graph;
 
 static AVAILABLE_ALLOCATORS: [&str; 3] =
     [
@@ -25,6 +26,7 @@ const BINARY_DIR: &str = "./benchmarks/bin";
 const BENCHMARK_RESULTS: &str = "./benchmarks/results";
 mod benchmark;
 mod age_checker;
+mod grapher;
 
 static DEBUG_MODE: AtomicBool = AtomicBool::new(false);
 
@@ -311,6 +313,7 @@ fn main() {
 
         let mut results = HashMap::new();
         for allocator in &allocators {
+            results.insert(*allocator, vec![]);
 
             let binary_name = format!("{}-{}", name, get_allocator_lib_file(*allocator).unwrap_or("libc"));
 
@@ -335,7 +338,7 @@ fn main() {
             let mut writer = BufWriter::new(output_file);
 
             for thread_count in 1..=max_threads {
-                let params = benchmark_param_list[name.as_str()];
+                let params = benchmark_param_list[&*name];
                 let args =
                     params.replace("{}", & *thread_count.to_string())
                         .split_whitespace()
@@ -344,8 +347,8 @@ fn main() {
 
                 println!("Running {}", binary_path.as_path().file_name().unwrap().to_str().unwrap());
                 writeln!(&mut writer, "-------------- [START] {} with {} threads --------------",
-                    binary_name,
-                    thread_count
+                         binary_name,
+                         thread_count
                 ).unwrap();
 
                 let mut sum_throughput = 0.0;
@@ -387,14 +390,22 @@ fn main() {
                     "#### Average Throughput: {} ####",
                     average
                 ).unwrap();
-                results.insert(*allocator, average);
+                results.get_mut(allocator).unwrap().push(average);
                 writeln!(
                     &mut writer,
                     "-------------- [END] --------------"
                 ).unwrap();
             }
-        }
 
+            writer.flush().unwrap();
+        }
+        let graph = Graph::new(name, results, max_threads);
+        match graph.make_graph() {
+            Ok(_) => {},
+            Err(e) => {
+                panic!("{:?}", e);
+            },
+        }
 
     }
 
