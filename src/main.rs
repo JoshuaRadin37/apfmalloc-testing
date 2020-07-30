@@ -215,6 +215,7 @@ fn main() {
     if should_build("lrmalloc.rs") {
         vprintln!("Creating lrmalloc.rs");
         if is_debug() {
+            vprintln!("Making debug version");
             Command::new("cargo")
                 .arg("build")
                 .arg("--manifest-path")
@@ -265,6 +266,7 @@ fn main() {
         },
     };
 
+
     let available_benchmarks = benchmark::get_available_benchmarks().unwrap();
     vprintln!("All available benchmarks = {:?}", available_benchmarks);
 
@@ -274,6 +276,9 @@ fn main() {
         if let Some(benchmarks) = benchmarks {
             let mut out = vec![];
             for benchmark in benchmarks {
+                if benchmark == "none" {
+                    return;
+                }
                 let os_string = OsString::from(benchmark);
                 if !available_benchmarks.contains(&os_string) {
                     eprintln!("{} is not a valid benchmark. Valid benchmarks = {:?}", benchmark, available_benchmarks);
