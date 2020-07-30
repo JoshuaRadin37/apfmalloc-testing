@@ -1,0 +1,16 @@
+-------------- [START] t-test1-libc with 1 threads --------------
+-------------- [START] t-test1-libc with 2 threads --------------
+-------------- [START] t-test1-libc with 3 threads --------------
+-------------- [START] t-test1-libc with 4 threads --------------
+-------------- [START] t-test1-libc with 5 threads --------------
+-------------- [START] t-test1-libc with 6 threads --------------
+-------------- [START] t-test1-libc with 7 threads --------------
+-------------- [START] t-test1-libc with 8 threads --------------
+-------------- [START] t-test1-libc with 9 threads --------------
+-------------- [START] t-test1-libc with 10 threads --------------
+-------------- [START] t-test1-libc with 11 threads --------------
+-------------- [START] t-test1-libc with 12 threads --------------
+-------------- [START] t-test1-libc with 13 threads --------------
+-------------- [START] t-test1-libc with 14 threads --------------
+-------------- [START] t-test1-libc with 15 threads --------------
+-------------- [START] t-test1-libc with 16 threads --------------

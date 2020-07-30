@@ -3,11 +3,14 @@ use std::process::{Command, exit, Child};
 use std::ffi::OsString;
 use crate::benchmark::Benchmark;
 use std::path::{PathBuf, Path};
-use std::io::Error;
+use std::io::{Error, BufWriter};
 use std::cell::RefCell;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::age_checker::should_build;
+use std::fs::{File, OpenOptions};
+use std::iter::FromIterator;
+use std::io::Write;
 
 static AVAILABLE_ALLOCATORS: [&str; 3] =
     [
@@ -16,7 +19,7 @@ static AVAILABLE_ALLOCATORS: [&str; 3] =
         "jemalloc"
     ];
 const BINARY_DIR: &str = "./benchmarks/bin";
-
+const BENCHMARK_RESULTS: &str = "./benchmarks/results";
 mod benchmark;
 mod age_checker;
 
@@ -159,7 +162,7 @@ fn main() {
     let out_dir = Path::new("./allocators/target");
     if !Path::new("./allocators/jemalloc/Makefile").exists() {
         vprintln!("Configuring jemalloc...");
-        
+
         if !Path::new("./allocators/jemalloc/configure").exists() {
             if !Path::new("./allocators/jemalloc/autogen.sh").exists() {
                 eprintln!("Neither the Makefile, configure, or autogen.sh files exist. Can not build jemalloc");
@@ -175,7 +178,7 @@ fn main() {
                 .status()
                 .expect("Failed to execute process");
         }
-        
+
         Command::new("./configure")
             .current_dir("./allocators/jemalloc")
             .arg("--without-export")
@@ -290,6 +293,8 @@ fn main() {
 
     let max_threads: usize = matches.value_of("threads").unwrap().parse().expect("Invalid value for --threads entry");
 
+    std::fs::create_dir_all(Path::new(BENCHMARK_RESULTS)).expect("Could not create benchmark result folder");
+
     for benchmark in running_benchmarks {
         benchmark.create_object_file().unwrap();
         let name = benchmark.get_name();
@@ -301,6 +306,7 @@ fn main() {
             },
         }
 
+
         for allocator in &allocators {
             let binary_name = format!("{}-{}", name, get_allocator_lib_file(*allocator).unwrap_or("libc"));
 
@@ -311,6 +317,19 @@ fn main() {
                 panic!("Binary {} does not exist!", binary_name);
             }
 
+
+
+            let output_file_name = format!("{}.txt", binary_name);
+            let output_file_path = PathBuf::from_iter(&[BENCHMARK_RESULTS, output_file_name.as_str()]);
+            let output_file =
+                OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(output_file_path)
+                    .expect(format!("Failed to create result file for {}", binary_name).as_str());
+
+            let mut writer = BufWriter::new(output_file);
+
             for thread_count in 1..=max_threads {
                 let params = benchmark_param_list[name.as_str()];
                 let args =
@@ -320,17 +339,28 @@ fn main() {
                         .collect::<Vec<String>>();
 
                 println!("Running {}", binary_path.as_path().file_name().unwrap().to_str().unwrap());
+                writeln!(&mut writer, "-------------- [START] {} with {} threads --------------",
+                    binary_name,
+                    thread_count
+                ).unwrap();
 
-                let status =
-                    Command::new(binary_path.to_str().unwrap())
-                        .args(args)
-                        .status()
-                        .unwrap();
+                let mut sum_throughput = 0.0;
+                const NUM_TRIALS: usize = 3;
+                for i in 0..NUM_TRIALS {
 
-                println!("Program exited with status {}", status);
-                if !status.success() {
-                    eprintln!("Program failed!");
-                    exit(status.code().unwrap_or(-1))
+
+
+                    let status =
+                        Command::new(binary_path.to_str().unwrap())
+                            .args(args.clone())
+                            .status()
+                            .unwrap();
+
+                    println!("Program exited with status {}", status);
+                    if !status.success() {
+                        eprintln!("Program failed!");
+                        exit(status.code().unwrap_or(-1))
+                    }
                 }
             }
         }

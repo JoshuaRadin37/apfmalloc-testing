@@ -77,7 +77,7 @@ impl Benchmark {
                 Err(_) => {},
             }
         }
-        std::fs::remove_dir(folder);
+        std::fs::remove_dir(folder).unwrap();
     }
 
     fn clean_benchmarks() {
