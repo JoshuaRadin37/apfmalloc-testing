@@ -96,9 +96,11 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 	r %= 1024;
 	/*printf("%d ", r);*/
 	if(r < 4) { /* memalign */
+		//printf("Using memalign\n");
 		if(m->size > 0) free(m->ptr);
 		m->ptr = (unsigned char *)memalign(sizeof(int) << r, size);
 	} else if(r < 20) { /* calloc */
+		//printf("Using calloc\n");
 		if(m->size > 0) free(m->ptr);
 		m->ptr = (unsigned char *)calloc(size, 1);
 #if TEST > 0
@@ -112,9 +114,12 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 		}
 #endif
 	} else if(r < 100 && m->size < REALLOC_MAX) { /* realloc */
+		//printf("Using realloc\n");
 		if(m->size == 0) m->ptr = NULL;
+		//else printf("On non-NULL\n");
 		m->ptr = realloc(m->ptr, size);
 	} else { /* plain malloc */
+		//printf("Using malloc\n");
 		if(m->size > 0) free(m->ptr);
 		m->ptr = (unsigned char *)malloc(size);
 	}

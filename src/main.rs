@@ -35,6 +35,15 @@ macro_rules! dict {
     };
 }
 
+fn create_process_name_for_local(local_path: &str) -> std::io::Result<OsString> {
+    let path = Path::new(local_path);
+    if !path.is_absolute() {
+        std::fs::canonicalize(local_path).map(|path| path.into_os_string())
+    } else {
+        Ok(path.as_os_str().to_os_string())
+    }
+}
+
 fn main() {
 
     let benchmark_param_list = dict![
@@ -134,6 +143,8 @@ fn main() {
             .collect::<Vec<String>>();
         vprintln!("Files to remove: {:?}", files);
 
+        // asdasd
+
         Command::new("rm").current_dir("./allocators/target").args(files).spawn().unwrap();
 
         Command::new("cargo").current_dir("./allocators/lrmalloc.rs").arg("clean").spawn().unwrap();
@@ -150,20 +161,27 @@ fn main() {
         vprintln!("Configuring jemalloc...");
         
         if !Path::new("./allocators/jemalloc/configure").exists() {
-            Command::new("./autogen.sh")
+            if !Path::new("./allocators/jemalloc/autogen.sh").exists() {
+                eprintln!("Neither the Makefile, configure, or autogen.sh files exist. Can not build jemalloc");
+                exit(5);
+            }
+
+
+            //let process = create_process_name_for_local("./allocators/jemalloc/autogen.sh").expect("Could not create a absolute path");
+            // vprintln!("Attempting to run {:?}", process);
+            Command::new("sh")
+                .arg("./autogen.sh")
                 .current_dir("./allocators/jemalloc")
                 .status()
-                .unwrap();
+                .expect("Failed to execute process");
         }
         
-        match Command::new("./configure")
+        Command::new("./configure")
             .current_dir("./allocators/jemalloc")
             .arg("--without-export")
             .arg("--disable-zone-allocator")
-            .spawn() {
-            Ok(_) => {},
-            Err(_) => {},
-        }
+            .status()
+            .expect("Failed to run the configure command");
     }
 
 
@@ -188,19 +206,36 @@ fn main() {
 
     if should_build("lrmalloc.rs") {
         vprintln!("Creating lrmalloc.rs");
-        Command::new("cargo")
-            .arg("build")
-            .arg("--manifest-path")
-            .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
-            .status()
-            .unwrap();
-        let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-        dest_path.push("liblrmalloc_rs_global.a");
-        Command::new("cp")
-            .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
-            .arg(dest_path.to_str().unwrap())
-            .status()
-            .unwrap();
+        if is_debug() {
+            Command::new("cargo")
+                .arg("build")
+                .arg("--manifest-path")
+                .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+                .status()
+                .unwrap();
+            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+            dest_path.push("liblrmalloc_rs_global.a");
+            Command::new("cp")
+                .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
+                .arg(dest_path.to_str().unwrap())
+                .status()
+                .unwrap();
+        } else {
+            Command::new("cargo")
+                .arg("build")
+                .arg("--release")
+                .arg("--manifest-path")
+                .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+                .status()
+                .unwrap();
+            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+            dest_path.push("liblrmalloc_rs_global.a");
+            Command::new("cp")
+                .arg("allocators/lrmalloc.rs/target/release/liblrmalloc_rs_global.a")
+                .arg(dest_path.to_str().unwrap())
+                .status()
+                .unwrap();
+        }
     }
 
 
@@ -225,8 +260,6 @@ fn main() {
     let available_benchmarks = benchmark::get_available_benchmarks().unwrap();
     vprintln!("All available benchmarks = {:?}", available_benchmarks);
 
-
-    //std::env::set_var("OUT_DIR", BINARY_DIR);
 
     let benchmarks = matches.values_of("benchmark");
     let running_benchmarks: Vec<_> =

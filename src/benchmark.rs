@@ -129,17 +129,19 @@ impl Benchmark {
 
         // Runs the make file in the benchmark folder
         if is_debug() {
-            if !Command::new("make build_debug")
+            let result = Command::new("make")
+                .arg("build_debug")
                 .current_dir(&self.src_dir)
-                .status()?
-                .success() {
+                .status();
+            if result.is_err() || !result.unwrap().success() {
                 panic!("Failed to create object file for {:?}", self.benchmark_name)
             }
         } else {
-            if !Command::new("make build")
+            let result = Command::new("make")
+                .arg("build")
                 .current_dir(&self.src_dir)
-                .status()?
-                .success() {
+                .status();
+            if result.is_err() || !result.unwrap().success() {
                 panic!("Failed to create object file for {:?}", self.benchmark_name)
             }
         }
@@ -196,8 +198,12 @@ impl Benchmark {
             let run =
                 Command::new("cc")
                     .args(&["-o", output_path.to_str().unwrap()])
+                    .arg("-Wl,--no-as-needed")
+                    .arg("-ldl")
                     .arg(object_file.to_str().unwrap())
                     .args(lib_args)
+                    .arg("-lpthread")
+                    .arg("-lm")
                     .status();
 
 
