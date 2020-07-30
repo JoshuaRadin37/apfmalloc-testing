@@ -315,6 +315,9 @@ fn main() {
                 exit(3);
             },
         }
+        if max_threads == 0 {
+            continue;
+        }
 
         let mut results = HashMap::new();
         for allocator in &allocators {
@@ -341,6 +344,7 @@ fn main() {
                     .expect(format!("Failed to create result file for {}", binary_name).as_str());
 
             let mut writer = BufWriter::new(output_file);
+
 
             for thread_count in 1..=max_threads {
                 let params = benchmark_param_list[&*name];
