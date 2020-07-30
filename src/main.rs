@@ -372,7 +372,7 @@ fn main() {
                     let duration = start.elapsed();
                     if !output.status.success() {
                         eprintln!("Program exited with code {}", output.status);
-                        exit(output.status.code().unwrap());
+                        return;
                     }
                     let output = from_utf8(&*output.stdout).expect("Output not in utf-8");
                     println!("{}", output);
