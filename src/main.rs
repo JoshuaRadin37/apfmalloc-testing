@@ -247,7 +247,7 @@ fn main() {
                 }
         );
 
-    if should_build("lrmalloc.rs") || !features.is_empty() {
+    if should_build("lrmalloc.rs") || !features.is_empty() || is_debug() {
         vprintln!("Creating lrmalloc.rs");
         if is_debug() {
             vprintln!("Making debug version");
