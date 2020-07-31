@@ -1,7 +1,7 @@
 use clap::{App, Arg, Values};
 use std::process::{Command, exit, Child};
-use std::ffi::OsString;
-use crate::benchmark::Benchmark;
+use std::ffi::{OsString, OsStr};
+use crate::benchmark::{Benchmark, BENCHMARK_DIR};
 use std::path::{PathBuf, Path};
 use std::io::{Error, BufWriter};
 use std::cell::RefCell;
@@ -269,22 +269,29 @@ fn main() {
 
     let available_benchmarks = benchmark::get_available_benchmarks().unwrap();
     vprintln!("All available benchmarks = {:?}", available_benchmarks);
-
+    let benchmark_names =
+        available_benchmarks.iter()
+            .map(|s| PathBuf::from(s.clone()))
+            .map(|p| p.file_name().unwrap().to_os_string())
+            .map(|s| s.into_string().unwrap())
+            .collect::<Vec<_>>();
 
     let benchmarks = matches.values_of("benchmark");
     let running_benchmarks: Vec<_> =
         if let Some(benchmarks) = benchmarks {
             let mut out = vec![];
             for benchmark in benchmarks {
+                let benchmark = benchmark.trim_end_matches("\"");
                 if benchmark == "none" {
                     return;
                 }
-                let os_string = OsString::from(benchmark);
-                if !available_benchmarks.contains(&os_string) {
+
+                let contains = benchmark_names.contains(&benchmark.to_string());
+                if !contains {
                     eprintln!("{} is not a valid benchmark. Valid benchmarks = {:?}", benchmark, available_benchmarks);
                     exit(2);
                 }
-                let bench = Benchmark::new(PathBuf::from(os_string));
+                let bench = Benchmark::new(PathBuf::from_iter(&[BENCHMARK_DIR, benchmark]));
                 out.push(bench);
             }
             out

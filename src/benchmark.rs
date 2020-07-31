@@ -16,7 +16,7 @@ pub struct Benchmark {
 
 const OBJECT_DIR: &str = "./benchmarks/objects";
 pub const LIBRARY_DIR: &str = "./allocators/target";
-const BENCHMARK_DIR: &str = "./benchmarks/sources";
+pub const BENCHMARK_DIR: &str = "./benchmarks/sources";
 const COMMON_DIR: &str = "common";
 
 #[derive(Debug)]
