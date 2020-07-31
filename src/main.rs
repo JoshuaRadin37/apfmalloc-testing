@@ -90,13 +90,20 @@ fn main() {
                 .takes_value(false)
         )
         .arg(
-            Arg::new("threads")
+            Arg::with_name("threads")
                 .long("threads")
                 .short('t')
                 .about("The maximum number of threads to test")
                 .takes_value(true)
                 .number_of_values(1)
                 .default_value("16")
+        )
+        .arg(
+            Arg::with_name("features")
+                .long("features")
+                .about("Set features for the lrmalloc.rs build (track_allocation, no_met_stack)")
+                .multiple_values(true)
+                .min_values(1)
         )
         .subcommand(
             App::new("clean")
@@ -107,7 +114,7 @@ fn main() {
     // println!("Current directory: {:?}", std::env::current_dir());
 
     #[allow(unused)]
-    let verbose = matches.is_present("verbose");
+        let verbose = matches.is_present("verbose");
 
     if matches.is_present("debug") {
         DEBUG_MODE.store(true, Ordering::Release);
@@ -226,14 +233,26 @@ fn main() {
             .unwrap();
     }
 
-    if should_build("lrmalloc.rs") {
+    let features = matches
+        .values_of("features")
+        .map_or(vec![],
+                |iter| {
+                    let mut collected: Vec<&str> = iter.collect();
+                    collected.insert(0, "--features");
+                    collected
+                }
+        );
+
+    if should_build("lrmalloc.rs") || !features.is_empty() {
         vprintln!("Creating lrmalloc.rs");
         if is_debug() {
             vprintln!("Making debug version");
             Command::new("cargo")
                 .arg("build")
+                .arg("--workspace")
                 .arg("--manifest-path")
-                .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+                .arg("allocators/lrmalloc.rs/Cargo.toml")
+                .args(features)
                 .status()
                 .unwrap();
             let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
@@ -246,9 +265,11 @@ fn main() {
         } else {
             Command::new("cargo")
                 .arg("build")
+                .arg("--workspace")
                 .arg("--release")
                 .arg("--manifest-path")
-                .arg("allocators/lrmalloc.rs/lrmalloc-rs-global/Cargo.toml")
+                .arg("allocators/lrmalloc.rs/Cargo.toml")
+                .args(features)
                 .status()
                 .unwrap();
             let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());

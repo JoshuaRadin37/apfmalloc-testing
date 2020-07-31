@@ -87,7 +87,7 @@ impl <'a> Graph<'a> {
 
         chart
             .configure_mesh()
-            .x_labels(self.num_threads)
+            .x_labels(16)
             .y_labels(labels)
             .x_desc("Number of Threads")
             .y_desc("Throughput")
