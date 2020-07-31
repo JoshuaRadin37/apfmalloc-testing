@@ -1,12 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::ffi::OsString;
-use std::collections::HashMap;
-use std::fs::{ReadDir, DirEntry, File};
-use std::io::{Error, ErrorKind};
-use std::process::{Command, exit, ExitStatus};
+use std::io::{Error};
+use std::process::{Command, ExitStatus};
 use std::ops::Deref;
 use std::fmt::Debug;
-use std::thread::panicking;
 use crate::{BINARY_DIR, is_debug};
 
 pub struct Benchmark {
@@ -80,7 +77,7 @@ impl Benchmark {
         std::fs::remove_dir(folder).unwrap();
     }
 
-    fn clean_benchmarks() {
+    pub fn clean_benchmarks() {
         let dir = Path::new(BINARY_DIR);
         if dir.exists() && dir.is_dir() {
             Self::clean_folder(dir)
@@ -89,32 +86,6 @@ impl Benchmark {
         if dir.exists() && dir.is_dir() {
             Self::clean_folder(dir)
         }
-    }
-
-
-    /// Returns a mapping of available benchmarks to run
-    pub fn available_benchmarks() -> Result<HashMap<OsString, Vec<PathBuf>>, std::io::Error> {
-        let dir = std::fs::read_dir(Path::new(OBJECT_DIR))?;
-        let mut output = HashMap::new();
-
-        for benchmark_folder in dir {
-            match benchmark_folder {
-                Ok(benchmark_folder) => {
-                    let name = benchmark_folder.file_name();
-                    let read = std::fs::read_dir(benchmark_folder.path())?;
-                    let binaries = read.filter_map(
-                        |entry_result|  entry_result.ok()
-                    ).map(
-                        |entry| entry.path().to_path_buf()
-                    ).collect();
-                    output.insert(name, binaries);
-                },
-                Err(_) => {},
-            }
-        }
-
-
-        Ok(output)
     }
 
     fn get_object_file(&self) -> OsString {

@@ -1,22 +1,11 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::error::Error;
 use std::iter::FromIterator;
 use std::path::PathBuf;
 
-use plotters::drawing::{BitMapBackend, DrawingBackend, IntoDrawingArea};
-use plotters::palette::chromatic_adaptation::AdaptInto;
-use plotters::prelude::{Color, LineSeries, RGBColor, ShapeStyle};
-use plotters::prelude::backend::BackendStyle;
-use plotters::style::{IntoFont, RGBAColor};
-use plotters::style::text_anchor::{HPos, Pos, VPos};
-use random_color::{Luminosity, RandomColor};
-
-use crate::benchmark::Benchmark;
-use lazy_static::lazy_static;
-
-use std::time::Instant;
 use chrono::Local;
+use lazy_static::lazy_static;
+use random_color::RandomColor;
 
 pub struct Graph<'a> {
     benchmark: String,
@@ -37,7 +26,7 @@ lazy_static! {
 fn generate_graph_path(benchmark_name: &str) -> PathBuf {
     let graph_name = format!("{}.png", benchmark_name);
     let path =  PathBuf::from_iter(&[GRAPHS_DIR, &*NEW_DIR]);
-    std::fs::create_dir_all(path);
+    std::fs::create_dir_all(path).unwrap();
     PathBuf::from_iter(&[GRAPHS_DIR, &*NEW_DIR, & *graph_name])
 }
 
@@ -73,7 +62,6 @@ impl <'a> Graph<'a> {
         max
     }
 
-    #[must_use]
     pub fn make_graph(self) -> Result<(), Box<dyn Error>> {
         use plotters::prelude::*;
         println!("Generating graph");
@@ -83,7 +71,7 @@ impl <'a> Graph<'a> {
             (900, 600)
         ).into_drawing_area();
         let root = root.margin(10, 10, 10, 10);
-        root.fill(&WHITE);
+        root.fill(&WHITE)?;
 
         let max_y: f64 = self.get_max_throughput() + 10.0;
         let labels = (max_y / 10.0) as usize;
@@ -99,7 +87,7 @@ impl <'a> Graph<'a> {
 
         chart
             .configure_mesh()
-            .x_labels(self.num_threads / 10)
+            .x_labels(self.num_threads)
             .y_labels(labels)
             .x_desc("Number of Threads")
             .y_desc("Throughput")

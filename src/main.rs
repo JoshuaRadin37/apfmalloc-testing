@@ -1,19 +1,20 @@
-use clap::{App, Arg, Values};
-use std::process::{Command, exit, Child};
-use std::ffi::{OsString, OsStr};
-use crate::benchmark::{Benchmark, BENCHMARK_DIR};
-use std::path::{PathBuf, Path};
-use std::io::{Error, BufWriter};
-use std::cell::RefCell;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
-use crate::age_checker::should_build;
-use std::fs::{File, OpenOptions};
-use std::iter::FromIterator;
-use std::io::Write;
-use std::time::{Duration, Instant};
-use std::str::from_utf8;
+#![deny(unused_imports)]
+
 use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::BufWriter;
+use std::io::Write;
+use std::iter::FromIterator;
+use std::path::{Path, PathBuf};
+use std::process::{Command, exit};
+use std::str::from_utf8;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Instant};
+
+use clap::{App, Arg};
+
+use crate::age_checker::should_build;
+use crate::benchmark::{Benchmark, BENCHMARK_DIR};
 use crate::grapher::Graph;
 
 static AVAILABLE_ALLOCATORS: [&str; 3] =
@@ -41,15 +42,6 @@ macro_rules! dict {
     ($($key:expr => $value:expr),*,) => {
         dict![$($key => $value),*]
     };
-}
-
-fn create_process_name_for_local(local_path: &str) -> std::io::Result<OsString> {
-    let path = Path::new(local_path);
-    if !path.is_absolute() {
-        std::fs::canonicalize(local_path).map(|path| path.into_os_string())
-    } else {
-        Ok(path.as_os_str().to_os_string())
-    }
 }
 
 fn main() {
@@ -114,6 +106,7 @@ fn main() {
 
     // println!("Current directory: {:?}", std::env::current_dir());
 
+    #[allow(unused)]
     let verbose = matches.is_present("verbose");
 
     if matches.is_present("debug") {
@@ -161,10 +154,31 @@ fn main() {
             .current_dir("./allocators/jemalloc")
             .arg("distclean")
             .spawn();
+
+        Benchmark::clean_benchmarks();
         return;
     }
 
     let out_dir = Path::new("./allocators/target");
+
+    if !Path::new("./allocators/jemalloc").exists() || !Path::new("./allocators/lrmalloc.rs").exists() {
+        Command::new("git")
+            .arg("submodule")
+            .arg("init")
+            .status()
+            .expect("Failed to initialize allocator directories");
+    }
+
+    if !Path::new("./allocators/jemalloc/src").exists() || !Path::new("./allocators/lrmalloc.rs/src").exists() {
+        Command::new("git")
+            .arg("submodule")
+            .arg("update")
+            .arg("--remote")
+            .status()
+            .expect("Failed to initialize allocator repos");
+    }
+
+
     if !Path::new("./allocators/jemalloc/Makefile").exists() {
         vprintln!("Configuring jemalloc...");
 
