@@ -167,6 +167,9 @@ fn main() {
     }
 
     let out_dir = Path::new("./allocators/target");
+    if !out_dir.exists() {
+        std::fs::create_dir_all(out_dir).unwrap();
+    }
 
     if !Path::new("./allocators/jemalloc").exists() || !Path::new("./allocators/lrmalloc.rs").exists() {
         Command::new("git")
@@ -212,6 +215,7 @@ fn main() {
             .status()
             .expect("Failed to run the configure command");
     }
+
 
 
     if should_build("jemalloc") {
