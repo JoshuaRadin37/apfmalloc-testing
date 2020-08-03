@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::fmt::Debug;
 use crate::{BINARY_DIR, is_debug, DYNAMIC_MODE};
 use std::sync::atomic::Ordering;
+use std::iter::FromIterator;
 
 pub struct Benchmark {
     src_dir: PathBuf,
@@ -161,22 +162,20 @@ impl Benchmark {
             let mut output_path = PathBuf::from(BINARY_DIR);
             output_path.push(output);
 
-            let lib_args: Vec<String> = if allocator != "libc" {
-                vec![
-                    format!("-L{}", LIBRARY_DIR),
-                    format!("-l{}", allocator)
-                ]
+            let lib_args: PathBuf = if allocator != "libc" {
+                PathBuf::from_iter(&[LIBRARY_DIR, & *format!("lib{}.a", allocator)])
             } else {
-                vec![]
+                PathBuf::new()
             };
 
             let mut command = Command::new("cc");
+            if !DYNAMIC_MODE.load(Ordering::Acquire) {
+                command.arg(lib_args);
+            }
             command.arg("-ldl");
             command.args(&["-o", output_path.to_str().unwrap()])
                 .arg(object_file.to_str().unwrap());
-            if !DYNAMIC_MODE.load(Ordering::Acquire) {
-                command.args(lib_args);
-            }
+
 
             command
                 .arg("-lpthread")
