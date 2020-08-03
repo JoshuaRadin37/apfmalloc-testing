@@ -162,15 +162,17 @@ impl Benchmark {
             let mut output_path = PathBuf::from(BINARY_DIR);
             output_path.push(output);
 
-            let lib_args: PathBuf = if allocator != "libc" {
-                PathBuf::from_iter(&[LIBRARY_DIR, & *format!("lib{}.a", allocator)])
+            let lib_args: Option<PathBuf> = if allocator != "libc" {
+                Some(PathBuf::from_iter(&[LIBRARY_DIR, & *format!("lib{}.a", allocator)]))
             } else {
-                PathBuf::new()
+                None
             };
 
             let mut command = Command::new("cc");
             if !DYNAMIC_MODE.load(Ordering::Acquire) {
-                command.arg(lib_args);
+                if let Some(lib_args) = lib_args {
+                    command.arg(lib_args);
+                }
             }
             command.arg("-ldl");
             command.args(&["-o", output_path.to_str().unwrap()])
