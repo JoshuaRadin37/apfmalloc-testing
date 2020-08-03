@@ -4,7 +4,8 @@ use std::io::{Error};
 use std::process::{Command, ExitStatus};
 use std::ops::Deref;
 use std::fmt::Debug;
-use crate::{BINARY_DIR, is_debug};
+use crate::{BINARY_DIR, is_debug, DYNAMIC_MODE};
+use std::sync::atomic::Ordering;
 
 pub struct Benchmark {
     src_dir: PathBuf,
@@ -169,15 +170,19 @@ impl Benchmark {
                 vec![]
             };
 
+            let mut command = Command::new("cc");
+            command.args(&["-o", output_path.to_str().unwrap()])
+                .arg(object_file.to_str().unwrap());
+            if !DYNAMIC_MODE.load(Ordering::Acquire) {
+                command.args(lib_args);
+            }
+
+            command
+                .arg("-lpthread")
+                .arg("-lm");
+            println!("{:?}", command);
             let run =
-                Command::new("cc")
-                    .args(&["-o", output_path.to_str().unwrap()])
-                    // .arg("-Wl,--no-as-needed")
-                    .arg("-ldl")
-                    .arg(object_file.to_str().unwrap())
-                    .args(lib_args)
-                    .arg("-lpthread")
-                    .arg("-lm")
+                command
                     .status();
 
 

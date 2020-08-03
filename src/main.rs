@@ -14,7 +14,7 @@ use std::time::{Instant};
 use clap::{App, Arg};
 
 use crate::age_checker::should_build;
-use crate::benchmark::{Benchmark, BENCHMARK_DIR};
+use crate::benchmark::{Benchmark, BENCHMARK_DIR, LIBRARY_DIR};
 use crate::grapher::Graph;
 
 static AVAILABLE_ALLOCATORS: [&str; 3] =
@@ -30,6 +30,14 @@ mod age_checker;
 mod grapher;
 
 static DEBUG_MODE: AtomicBool = AtomicBool::new(false);
+static DYNAMIC_MODE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(target_os = "macos")]
+const DYNAMIC_LIBRARY_EXTENSION: &str = ".dylib";
+#[cfg(target_os = "linux")]
+const DYNAMIC_LIBRARY_EXTENSION: &str = ".so";
+#[cfg(target_os = "windows")]
+const DYNAMIC_LIBRARY_EXTENSION: &str = ".dylib";
 
 macro_rules! dict {
     ($($key:expr => $value:expr),*) => {
@@ -105,6 +113,11 @@ fn main() {
                 .multiple_values(true)
                 .min_values(1)
         )
+        .arg(
+            Arg::with_name("dynamic")
+                .long("dynamic")
+                .about("Use dynamic libraries instead of static")
+        )
         .subcommand(
             App::new("clean")
                 .about("Cleans the allocators, forcing a remake of the allocators")
@@ -118,6 +131,10 @@ fn main() {
 
     if matches.is_present("debug") {
         DEBUG_MODE.store(true, Ordering::Release);
+    }
+
+    if matches.is_present("dynamic") {
+        DYNAMIC_MODE.store(true, Ordering::Release);
     }
 
     macro_rules! vprint {
@@ -218,20 +235,34 @@ fn main() {
 
 
 
-    if should_build("jemalloc") {
+    if should_build("jemalloc") || DYNAMIC_MODE.load(Ordering::Acquire) {
         vprintln!("Building jemalloc");
+
         while !Path::new("./allocators/jemalloc/Makefile").exists() {
 
         }
-        Command::new("make")
-            .current_dir("./allocators/jemalloc")
-            .arg("build_lib_static")
-            .status()
-            .unwrap();
+        let file_name = format!("libjemalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+            DYNAMIC_LIBRARY_EXTENSION
+        } else {
+            ".a"
+        });
+        if !DYNAMIC_MODE.load(Ordering::Acquire) {
+            Command::new("make")
+                .current_dir("./allocators/jemalloc")
+                .arg("build_lib_static")
+                .status()
+                .unwrap();
+        } else {
+            Command::new("make")
+                .current_dir("./allocators/jemalloc")
+                .arg("build_lib_shared")
+                .status()
+                .unwrap();
+        }
         let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-        dest_path.push("libjemalloc.a");
+        dest_path.push(file_name.clone());
         Command::new("cp")
-            .arg("./allocators/jemalloc/lib/libjemalloc.a")
+            .arg(format!("./allocators/jemalloc/lib/{}", file_name))
             .arg(dest_path)
             .status()
             .unwrap();
@@ -247,8 +278,13 @@ fn main() {
                 }
         );
 
-    if should_build("lrmalloc.rs") || !features.is_empty() || is_debug() {
+    if should_build("lrmalloc.rs") || !features.is_empty() || is_debug() || DYNAMIC_MODE.load(Ordering::Acquire) {
         vprintln!("Creating lrmalloc.rs");
+        let file_name = format!("liblrmalloc_rs_global{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+            DYNAMIC_LIBRARY_EXTENSION
+        } else {
+            ".a"
+        });
         if is_debug() {
             vprintln!("Making debug version");
             Command::new("cargo")
@@ -260,9 +296,9 @@ fn main() {
                 .status()
                 .unwrap();
             let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-            dest_path.push("liblrmalloc_rs_global.a");
+            dest_path.push(file_name.clone());
             Command::new("cp")
-                .arg("allocators/lrmalloc.rs/target/debug/liblrmalloc_rs_global.a")
+                .arg(format!("allocators/lrmalloc.rs/target/debug/{}", file_name))
                 .arg(dest_path.to_str().unwrap())
                 .status()
                 .unwrap();
@@ -277,9 +313,9 @@ fn main() {
                 .status()
                 .unwrap();
             let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-            dest_path.push("liblrmalloc_rs_global.a");
+            dest_path.push(file_name.clone());
             Command::new("cp")
-                .arg("allocators/lrmalloc.rs/target/release/liblrmalloc_rs_global.a")
+                .arg(format!("allocators/lrmalloc.rs/target/release/{}", file_name))
                 .arg(dest_path.to_str().unwrap())
                 .status()
                 .unwrap();
@@ -415,12 +451,29 @@ fn main() {
                         i
                     ).unwrap();
 
+
+                    let mut command = Command::new(binary_path.to_str().unwrap());
+                    command
+                        .args(args.clone());
+                    if DYNAMIC_MODE.load(Ordering::Acquire) {
+                        if let Some(allocator) = get_allocator_lib_file(*allocator) {
+                            let path = {
+                                let mut path = PathBuf::from(LIBRARY_DIR);
+                                path.push(format!("lib{}{}", allocator, DYNAMIC_LIBRARY_EXTENSION));
+                                path
+                            };
+
+                            let path = path.canonicalize().unwrap_or_else(|_| panic!("Could not get canonical path for the dynamic library at {:?}", path));
+
+
+                            #[cfg(target_os = "linux")]
+                                command.env("LD_PRELOAD", path);
+                            #[cfg(target_os = "macos")]
+                                command.env("DYLD_INSERT_LIBRARIES", path);
+                        }
+                    }
                     let start = Instant::now();
-                    let output =
-                        Command::new(binary_path.to_str().unwrap())
-                            .args(args.clone())
-                            .output()
-                            .unwrap();
+                    let output = command.output().unwrap();
 
 
 

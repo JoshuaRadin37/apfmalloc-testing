@@ -143,6 +143,8 @@ my_end_thread(struct thread_st *st)
 	return 0;
 }
 
+unsigned char check_override();
+
 int
 main(int argc, char *argv[])
 {
