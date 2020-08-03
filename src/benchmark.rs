@@ -171,6 +171,7 @@ impl Benchmark {
             };
 
             let mut command = Command::new("cc");
+            command.arg("-ldl");
             command.args(&["-o", output_path.to_str().unwrap()])
                 .arg(object_file.to_str().unwrap());
             if !DYNAMIC_MODE.load(Ordering::Acquire) {
