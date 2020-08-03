@@ -74,7 +74,6 @@ impl <'a> Graph<'a> {
         root.fill(&WHITE)?;
 
         let max_y: f64 = self.get_max_throughput() + 10.0;
-        let labels = (max_y / 10.0) as usize;
 
         let mut chart = ChartBuilder::on(&root)
             .caption(format!("{} Throughput vs Number of Threads", self.benchmark), ("sans-serif", 30).into_font())
@@ -88,7 +87,7 @@ impl <'a> Graph<'a> {
         chart
             .configure_mesh()
             .x_labels(16)
-            .y_labels(labels)
+            .y_labels(10)
             .x_desc("Number of Threads")
             .y_desc("Throughput")
             .draw()?;
