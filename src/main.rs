@@ -189,7 +189,8 @@ fn main() {
         std::fs::create_dir_all(out_dir).unwrap();
     }
 
-    if !Path::new("./allocators/jemalloc").exists() || !Path::new("./allocators/lrmalloc.rs").exists() || !Path::new("./allocators/lrmalloc").exists() {
+    if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/lrmalloc.rs/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
+        vprintln!("Initializing the submodules...");
         Command::new("git")
             .arg("submodule")
             .arg("init")
@@ -200,6 +201,7 @@ fn main() {
     if !Path::new("./allocators/jemalloc/src").exists() ||
         !Path::new("./allocators/lrmalloc.rs/src").exists() ||
         !Path::new("./allocators/lrmalloc/src").exists() {
+        vprintln!("Updating submodules...");
         Command::new("git")
             .arg("submodule")
             .arg("update")
