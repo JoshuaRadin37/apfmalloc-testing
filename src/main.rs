@@ -189,183 +189,6 @@ fn main() {
         std::fs::create_dir_all(out_dir).unwrap();
     }
 
-    if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/lrmalloc.rs/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
-        vprintln!("Initializing the submodules...");
-        Command::new("git")
-            .arg("submodule")
-            .arg("init")
-            .status()
-            .expect("Failed to initialize allocator directories");
-    }
-
-    if !Path::new("./allocators/jemalloc/Makefile").exists() ||
-        !Path::new("./allocators/lrmalloc.rs/Cargo.toml").exists() ||
-        !Path::new("./allocators/lrmalloc/Makefile").exists() {
-        vprintln!("Updating submodules...");
-        Command::new("git")
-            .arg("submodule")
-            .arg("update")
-            .arg("--remote")
-            .status()
-            .expect("Failed to initialize allocator repos");
-    }
-
-
-    if !Path::new("./allocators/jemalloc/Makefile").exists() {
-        vprintln!("Configuring jemalloc...");
-
-        if !Path::new("./allocators/jemalloc/configure").exists() {
-            if !Path::new("./allocators/jemalloc/autogen.sh").exists() {
-                eprintln!("Neither the Makefile, configure, or autogen.sh files exist. Can not build jemalloc");
-                exit(5);
-            }
-
-
-            //let process = create_process_name_for_local("./allocators/jemalloc/autogen.sh").expect("Could not create a absolute path");
-            // vprintln!("Attempting to run {:?}", process);
-            Command::new("sh")
-                .arg("./autogen.sh")
-                .current_dir("./allocators/jemalloc")
-                .status()
-                .expect("Failed to execute process");
-        }
-
-        Command::new("./configure")
-            .current_dir("./allocators/jemalloc")
-            .arg("--without-export")
-            .arg("--disable-zone-allocator")
-            .status()
-            .expect("Failed to run the configure command");
-    }
-
-
-
-    if should_build("jemalloc") || DYNAMIC_MODE.load(Ordering::Acquire) {
-        vprintln!("Building jemalloc");
-
-        while !Path::new("./allocators/jemalloc/Makefile").exists() {
-
-        }
-        let file_name = format!("libjemalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
-            DYNAMIC_LIBRARY_EXTENSION
-        } else {
-            ".a"
-        });
-        if !DYNAMIC_MODE.load(Ordering::Acquire) {
-            Command::new("make")
-                .current_dir("./allocators/jemalloc")
-                .arg("build_lib_static")
-                .status()
-                .unwrap();
-        } else {
-            Command::new("make")
-                .current_dir("./allocators/jemalloc")
-                .arg("build_lib_shared")
-                .status()
-                .unwrap();
-        }
-        let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-        dest_path.push(file_name.clone());
-        Command::new("cp")
-            .arg(format!("./allocators/jemalloc/lib/{}", file_name))
-            .arg(dest_path)
-            .status()
-            .unwrap();
-    }
-
-    let features = matches
-        .values_of("features")
-        .map_or(vec![],
-                |iter| {
-                    let mut collected: Vec<&str> = iter.collect();
-                    collected.insert(0, "--features");
-                    collected
-                }
-        );
-
-    if should_build("lrmalloc.rs") ||
-        !features.is_empty() ||
-        is_debug() ||
-        DYNAMIC_MODE.load(Ordering::Acquire) {
-
-        vprintln!("Creating lrmalloc.rs");
-        let file_name = format!("liblrmalloc_rs_global{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
-            DYNAMIC_LIBRARY_EXTENSION
-        } else {
-            ".a"
-        });
-        if is_debug() {
-            vprintln!("Making debug version");
-            Command::new("cargo")
-                .arg("build")
-                .arg("--workspace")
-                .arg("--manifest-path")
-                .arg("allocators/lrmalloc.rs/Cargo.toml")
-                .args(features)
-                .status()
-                .unwrap();
-            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-            dest_path.push(file_name.clone());
-            Command::new("cp")
-                .arg(format!("allocators/lrmalloc.rs/target/debug/{}", file_name))
-                .arg(dest_path.to_str().unwrap())
-                .status()
-                .unwrap();
-        } else {
-            Command::new("cargo")
-                .arg("build")
-                .arg("--workspace")
-                .arg("--release")
-                .arg("--manifest-path")
-                .arg("allocators/lrmalloc.rs/Cargo.toml")
-                .args(features)
-                .status()
-                .unwrap();
-            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-            dest_path.push(file_name.clone());
-            Command::new("cp")
-                .arg(format!("allocators/lrmalloc.rs/target/release/{}", file_name))
-                .arg(dest_path.to_str().unwrap())
-                .status()
-                .unwrap();
-        }
-    }
-
-    if should_build("lrmalloc") || DYNAMIC_MODE.load(Ordering::Acquire) {
-        vprintln!("Building lrmalloc");
-
-        let file_name = format!("lrmalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
-            DYNAMIC_LIBRARY_EXTENSION
-        } else {
-            ".a"
-        });
-        if !DYNAMIC_MODE.load(Ordering::Acquire) {
-            if !Command::new("make")
-                .current_dir("./allocators/lrmalloc")
-                .arg("lrmalloc.a")
-                .status()
-                .unwrap().success() {
-                return;
-            }
-        } else {
-            if !Command::new("make")
-                .current_dir("./allocators/lrmalloc")
-                .arg("lrmalloc.so")
-                .status()
-                .unwrap().success() {
-                return;
-            }
-        }
-        let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-        dest_path.push(format!("lib{}", file_name));
-        Command::new("cp")
-            .arg(format!("./allocators/lrmalloc/{}", file_name))
-            .arg(dest_path)
-            .status()
-            .unwrap();
-    }
-
-
     let allocators = matches.values_of("allocator");
     let allocators: Vec<&str> = match allocators {
         None => {
@@ -382,6 +205,182 @@ fn main() {
             listed
         },
     };
+
+    if allocators.contains(&"jemalloc") {
+        if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/lrmalloc.rs/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
+            vprintln!("Initializing the submodules...");
+            Command::new("git")
+                .arg("submodule")
+                .arg("init")
+                .status()
+                .expect("Failed to initialize allocator directories");
+        }
+
+        if !Path::new("./allocators/jemalloc/Makefile").exists() ||
+            !Path::new("./allocators/lrmalloc.rs/Cargo.toml").exists() ||
+            !Path::new("./allocators/lrmalloc/Makefile").exists() {
+            vprintln!("Updating submodules...");
+            Command::new("git")
+                .arg("submodule")
+                .arg("update")
+                .arg("--remote")
+                .status()
+                .expect("Failed to initialize allocator repos");
+        }
+
+
+        if !Path::new("./allocators/jemalloc/Makefile").exists() {
+            vprintln!("Configuring jemalloc...");
+
+            if !Path::new("./allocators/jemalloc/configure").exists() {
+                if !Path::new("./allocators/jemalloc/autogen.sh").exists() {
+                    eprintln!("Neither the Makefile, configure, or autogen.sh files exist. Can not build jemalloc");
+                    exit(5);
+                }
+
+
+                //let process = create_process_name_for_local("./allocators/jemalloc/autogen.sh").expect("Could not create a absolute path");
+                // vprintln!("Attempting to run {:?}", process);
+                Command::new("sh")
+                    .arg("./autogen.sh")
+                    .current_dir("./allocators/jemalloc")
+                    .status()
+                    .expect("Failed to execute process");
+            }
+
+            Command::new("./configure")
+                .current_dir("./allocators/jemalloc")
+                .arg("--without-export")
+                .arg("--disable-zone-allocator")
+                .status()
+                .expect("Failed to run the configure command");
+        }
+
+
+        if should_build("jemalloc") || DYNAMIC_MODE.load(Ordering::Acquire) {
+            vprintln!("Building jemalloc");
+
+            while !Path::new("./allocators/jemalloc/Makefile").exists() {}
+            let file_name = format!("libjemalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+                DYNAMIC_LIBRARY_EXTENSION
+            } else {
+                ".a"
+            });
+            if !DYNAMIC_MODE.load(Ordering::Acquire) {
+                Command::new("make")
+                    .current_dir("./allocators/jemalloc")
+                    .arg("build_lib_static")
+                    .status()
+                    .unwrap();
+            } else {
+                Command::new("make")
+                    .current_dir("./allocators/jemalloc")
+                    .arg("build_lib_shared")
+                    .status()
+                    .unwrap();
+            }
+            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+            dest_path.push(file_name.clone());
+            Command::new("cp")
+                .arg(format!("./allocators/jemalloc/lib/{}", file_name))
+                .arg(dest_path)
+                .status()
+                .unwrap();
+        }
+    }
+
+    if allocators.contains(&"lrmalloc.rs") {
+        let features = matches
+            .values_of("features")
+            .map_or(vec![],
+                    |iter| {
+                        let mut collected: Vec<&str> = iter.collect();
+                        collected.insert(0, "--features");
+                        collected
+                    }
+            );
+
+        if should_build("lrmalloc.rs") ||
+            !features.is_empty() ||
+            is_debug() ||
+            DYNAMIC_MODE.load(Ordering::Acquire) {
+            vprintln!("Creating lrmalloc.rs");
+            let file_name = format!("liblrmalloc_rs_global{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+                DYNAMIC_LIBRARY_EXTENSION
+            } else {
+                ".a"
+            });
+            if is_debug() {
+                vprintln!("Making debug version");
+                Command::new("cargo")
+                    .arg("build")
+                    .arg("--workspace")
+                    .arg("--manifest-path")
+                    .arg("allocators/lrmalloc.rs/Cargo.toml")
+                    .args(features)
+                    .status()
+                    .unwrap();
+                let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+                dest_path.push(file_name.clone());
+                Command::new("cp")
+                    .arg(format!("allocators/lrmalloc.rs/target/debug/{}", file_name))
+                    .arg(dest_path.to_str().unwrap())
+                    .status()
+                    .unwrap();
+            } else {
+                Command::new("cargo")
+                    .arg("build")
+                    .arg("--workspace")
+                    .arg("--release")
+                    .arg("--manifest-path")
+                    .arg("allocators/lrmalloc.rs/Cargo.toml")
+                    .args(features)
+                    .status()
+                    .unwrap();
+                let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+                dest_path.push(file_name.clone());
+                Command::new("cp")
+                    .arg(format!("allocators/lrmalloc.rs/target/release/{}", file_name))
+                    .arg(dest_path.to_str().unwrap())
+                    .status()
+                    .unwrap();
+            }
+        }
+    }
+
+    if allocators.contains(&"lrmalloc") {
+        if should_build("lrmalloc") || DYNAMIC_MODE.load(Ordering::Acquire) {
+            vprintln!("Building lrmalloc");
+
+            let file_name = format!("lrmalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+                DYNAMIC_LIBRARY_EXTENSION
+            } else {
+                ".a"
+            });
+            if !DYNAMIC_MODE.load(Ordering::Acquire) {
+                if !Command::new("make")
+                    .current_dir("./allocators/lrmalloc")
+                    .arg("lrmalloc.a")
+                    .status()
+                    .unwrap().success() {
+                    return;
+                }
+            } else if !Command::new("make")
+                .current_dir("./allocators/lrmalloc")
+                .arg("lrmalloc.so")
+                .status()
+                .unwrap().success() {
+                return;
+            }
+            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+            dest_path.push(format!("lib{}", file_name));
+            Command::new("cp")
+                .arg(format!("./allocators/lrmalloc/{}", file_name))
+                .arg(dest_path)
+                .status()
+                .unwrap();
+        }
+    }
 
 
     let available_benchmarks = benchmark::get_available_benchmarks().unwrap();
