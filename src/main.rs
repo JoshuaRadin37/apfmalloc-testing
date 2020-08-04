@@ -393,7 +393,7 @@ fn main() {
             .collect::<Vec<_>>();
 
     let benchmarks = matches.values_of("benchmark");
-    let running_benchmarks: Vec<_> =
+    let mut running_benchmarks: Vec<_> =
         if let Some(benchmarks) = benchmarks {
             let mut out = vec![];
             for benchmark in benchmarks {
@@ -414,6 +414,7 @@ fn main() {
         } else {
             available_benchmarks.into_iter().map(|p| Benchmark::new(PathBuf::from(p))).collect()
         };
+    running_benchmarks.sort_by(|b1, b2| b1.get_name().cmp(&b2.get_name()));
 
 
     let allocator_libs: Vec<Option<String>> =
