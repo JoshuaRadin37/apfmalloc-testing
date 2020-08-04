@@ -198,9 +198,9 @@ fn main() {
             .expect("Failed to initialize allocator directories");
     }
 
-    if !Path::new("./allocators/jemalloc/src").exists() ||
-        !Path::new("./allocators/lrmalloc.rs/src").exists() ||
-        !Path::new("./allocators/lrmalloc/src").exists() {
+    if !Path::new("./allocators/jemalloc/Makefile").exists() ||
+        !Path::new("./allocators/lrmalloc.rs/Cargo.toml").exists() ||
+        !Path::new("./allocators/lrmalloc/Makefile").exists() {
         vprintln!("Updating submodules...");
         Command::new("git")
             .arg("submodule")
