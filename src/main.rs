@@ -477,7 +477,7 @@ fn main() {
                         .map(|s| s.to_string())
                         .collect::<Vec<String>>();
 
-                println!("Running {}", binary_path.as_path().file_name().unwrap().to_str().unwrap());
+                println!("Running {} with {} threads", binary_path.as_path().file_name().unwrap().to_str().unwrap(), thread_count);
                 writeln!(&mut writer, "-------------- [START] {} with {} threads --------------",
                          binary_name,
                          thread_count
