@@ -6,3 +6,7 @@
 	path = allocators/lrmalloc.rs
 	url = https://github.com/JoshuaRadin37/lrmalloc.rs.git
 	branch = master
+[submodule "allocators/lrmalloc"]
+	path = allocators/lrmalloc
+	url = https://github.com/ricleite/lrmalloc.git
+	branch = master

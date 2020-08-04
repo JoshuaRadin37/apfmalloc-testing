@@ -17,11 +17,12 @@ use crate::age_checker::should_build;
 use crate::benchmark::{Benchmark, BENCHMARK_DIR, LIBRARY_DIR};
 use crate::grapher::Graph;
 
-static AVAILABLE_ALLOCATORS: [&str; 3] =
+static AVAILABLE_ALLOCATORS: [&str; 4] =
     [
         "libc",
         "lrmalloc.rs",
-        "jemalloc"
+        "jemalloc",
+        "lrmalloc"
     ];
 const BINARY_DIR: &str = "./benchmarks/bin";
 const BENCHMARK_RESULTS: &str = "./benchmarks/results";
@@ -188,7 +189,7 @@ fn main() {
         std::fs::create_dir_all(out_dir).unwrap();
     }
 
-    if !Path::new("./allocators/jemalloc").exists() || !Path::new("./allocators/lrmalloc.rs").exists() {
+    if !Path::new("./allocators/jemalloc").exists() || !Path::new("./allocators/lrmalloc.rs").exists() || !Path::new("./allocators/lrmalloc").exists() {
         Command::new("git")
             .arg("submodule")
             .arg("init")
@@ -196,7 +197,9 @@ fn main() {
             .expect("Failed to initialize allocator directories");
     }
 
-    if !Path::new("./allocators/jemalloc/src").exists() || !Path::new("./allocators/lrmalloc.rs/src").exists() {
+    if !Path::new("./allocators/jemalloc/src").exists() ||
+        !Path::new("./allocators/lrmalloc.rs/src").exists() ||
+        !Path::new("./allocators/lrmalloc/src").exists() {
         Command::new("git")
             .arg("submodule")
             .arg("update")
@@ -278,7 +281,11 @@ fn main() {
                 }
         );
 
-    if should_build("lrmalloc.rs") || !features.is_empty() || is_debug() || DYNAMIC_MODE.load(Ordering::Acquire) {
+    if should_build("lrmalloc.rs") ||
+        !features.is_empty() ||
+        is_debug() ||
+        DYNAMIC_MODE.load(Ordering::Acquire) {
+
         vprintln!("Creating lrmalloc.rs");
         let file_name = format!("liblrmalloc_rs_global{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
             DYNAMIC_LIBRARY_EXTENSION
@@ -322,6 +329,39 @@ fn main() {
         }
     }
 
+    if should_build("lrmalloc") || DYNAMIC_MODE.load(Ordering::Acquire) {
+        vprintln!("Building lrmalloc");
+
+        let file_name = format!("lrmalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+            DYNAMIC_LIBRARY_EXTENSION
+        } else {
+            ".a"
+        });
+        if !DYNAMIC_MODE.load(Ordering::Acquire) {
+            if !Command::new("make")
+                .current_dir("./allocators/lrmalloc")
+                .arg("lrmalloc.a")
+                .status()
+                .unwrap().success() {
+                return;
+            }
+        } else {
+            if !Command::new("make")
+                .current_dir("./allocators/lrmalloc")
+                .arg("lrmalloc.so")
+                .status()
+                .unwrap().success() {
+                return;
+            }
+        }
+        let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+        dest_path.push(format!("lib{}", file_name));
+        Command::new("cp")
+            .arg(format!("./allocators/lrmalloc/{}", file_name))
+            .arg(dest_path)
+            .status()
+            .unwrap();
+    }
 
 
     let allocators = matches.values_of("allocator");
@@ -547,6 +587,9 @@ fn get_allocator_lib_file(allocator_name: &str) -> Option<&str> {
         },
         "jemalloc" => {
             Some("jemalloc")
+        },
+        "lrmalloc" => {
+            Some("lrmalloc")
         }
         a => {
             panic!("{} is not a registered allocator!", a)
