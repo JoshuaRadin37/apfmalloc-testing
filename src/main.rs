@@ -206,15 +206,17 @@ fn main() {
         },
     };
 
+    if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/apfmalloc/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
+        vprintln!("Initializing the submodules...");
+        Command::new("git")
+            .arg("submodule")
+            .arg("init")
+            .status()
+            .expect("Failed to initialize allocator directories");
+    }
+
     if allocators.contains(&"jemalloc") {
-        if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/apfmalloc/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
-            vprintln!("Initializing the submodules...");
-            Command::new("git")
-                .arg("submodule")
-                .arg("init")
-                .status()
-                .expect("Failed to initialize allocator directories");
-        }
+
 
         if !Path::new("./allocators/jemalloc/Makefile").exists() ||
             !Path::new("./allocators/apfmalloc/Cargo.toml").exists() ||
