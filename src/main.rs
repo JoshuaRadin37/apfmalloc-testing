@@ -20,7 +20,7 @@ use crate::grapher::Graph;
 static AVAILABLE_ALLOCATORS: [&str; 4] =
     [
         "libc",
-        "lrmalloc.rs",
+        "apfmalloc",
         "jemalloc",
         "lrmalloc"
     ];
@@ -62,10 +62,10 @@ fn main() {
 
 
 
-    let matches = App::new("lrmalloc.rs benchmarking utility")
+    let matches = App::new("apfmalloc benchmarking utility")
         .author("Joshua Radin <jradin2@u.rochester.edu>")
         .version("0.1.0")
-        .about("Runs benchmarks for different allocators, namely lrmalloc.rs, jemalloc, and libc")
+        .about("Runs benchmarks for different allocators, namely apfmalloc, jemalloc, and libc")
         .arg(
             Arg::with_name("allocator")
                 .short('a')
@@ -110,7 +110,7 @@ fn main() {
         .arg(
             Arg::with_name("features")
                 .long("features")
-                .about("Set features for the lrmalloc.rs build (track_allocation, no_met_stack)")
+                .about("Set features for the apfmalloc build (track_allocation, no_met_stack)")
                 .multiple_values(true)
                 .min_values(1)
         )
@@ -173,7 +173,7 @@ fn main() {
 
         Command::new("rm").current_dir("./allocators/target").args(files).spawn().unwrap();
 
-        Command::new("cargo").current_dir("./allocators/lrmalloc.rs").arg("clean").spawn().unwrap();
+        Command::new("cargo").current_dir("./allocators/apfmalloc").arg("clean").spawn().unwrap();
         Command::new("rm").current_dir("./allocators/jemalloc/lib").arg("libjemalloc.a").spawn().unwrap();
         let _ = Command::new("make")
             .current_dir("./allocators/jemalloc")
@@ -207,7 +207,7 @@ fn main() {
     };
 
     if allocators.contains(&"jemalloc") {
-        if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/lrmalloc.rs/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
+        if !Path::new("./allocators/jemalloc/.git").exists() || !Path::new("./allocators/apfmalloc/.git").exists() || !Path::new("./allocators/lrmalloc/.git").exists() {
             vprintln!("Initializing the submodules...");
             Command::new("git")
                 .arg("submodule")
@@ -217,7 +217,7 @@ fn main() {
         }
 
         if !Path::new("./allocators/jemalloc/Makefile").exists() ||
-            !Path::new("./allocators/lrmalloc.rs/Cargo.toml").exists() ||
+            !Path::new("./allocators/apfmalloc/Cargo.toml").exists() ||
             !Path::new("./allocators/lrmalloc/Makefile").exists() {
             vprintln!("Updating submodules...");
             Command::new("git")
@@ -246,14 +246,14 @@ fn main() {
                     .current_dir("./allocators/jemalloc")
                     .status()
                     .expect("Failed to execute process");
+            } else {
+                Command::new("./configure")
+                    .current_dir("./allocators/jemalloc")
+                    .arg("--without-export")
+                    .arg("--disable-zone-allocator")
+                    .status()
+                    .expect("Failed to run the configure command");
             }
-
-            Command::new("./configure")
-                .current_dir("./allocators/jemalloc")
-                .arg("--without-export")
-                .arg("--disable-zone-allocator")
-                .status()
-                .expect("Failed to run the configure command");
         }
 
 
@@ -289,7 +289,9 @@ fn main() {
         }
     }
 
-    if allocators.contains(&"lrmalloc.rs") {
+    if allocators.contains(&"apfmalloc") {
+
+        println!("TARGET_APF = {:?}", option_env!("TARGET_APF"));
         let features = matches
             .values_of("features")
             .map_or(vec![],
@@ -300,51 +302,48 @@ fn main() {
                     }
             );
 
-        if should_build("lrmalloc.rs") ||
-            !features.is_empty() ||
-            is_debug() ||
-            DYNAMIC_MODE.load(Ordering::Acquire) {
-            vprintln!("Creating lrmalloc.rs");
-            let file_name = format!("liblrmalloc_rs_global{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
-                DYNAMIC_LIBRARY_EXTENSION
-            } else {
-                ".a"
-            });
-            if is_debug() {
-                vprintln!("Making debug version");
-                Command::new("cargo")
-                    .arg("build")
-                    .arg("--workspace")
-                    .arg("--manifest-path")
-                    .arg("allocators/lrmalloc.rs/Cargo.toml")
-                    .args(features)
-                    .status()
-                    .unwrap();
-                let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-                dest_path.push(file_name.clone());
-                Command::new("cp")
-                    .arg(format!("allocators/lrmalloc.rs/target/debug/{}", file_name))
-                    .arg(dest_path.to_str().unwrap())
-                    .status()
-                    .unwrap();
-            } else {
-                Command::new("cargo")
-                    .arg("build")
-                    .arg("--workspace")
-                    .arg("--release")
-                    .arg("--manifest-path")
-                    .arg("allocators/lrmalloc.rs/Cargo.toml")
-                    .args(features)
-                    .status()
-                    .unwrap();
-                let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
-                dest_path.push(file_name.clone());
-                Command::new("cp")
-                    .arg(format!("allocators/lrmalloc.rs/target/release/{}", file_name))
-                    .arg(dest_path.to_str().unwrap())
-                    .status()
-                    .unwrap();
-            }
+
+        vprintln!("Creating apfmalloc");
+        let file_name = format!("libapfmalloc{}", if DYNAMIC_MODE.load(Ordering::Acquire) {
+            DYNAMIC_LIBRARY_EXTENSION
+        } else {
+            ".a"
+        });
+        if is_debug() {
+            vprintln!("Making debug version");
+            Command::new("cargo")
+                .arg("build")
+                .arg("--workspace")
+                .arg("--manifest-path")
+                .arg("allocators/apfmalloc/Cargo.toml")
+                .args(features)
+                .status()
+                .unwrap();
+            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+            dest_path.push(file_name.clone());
+            Command::new("cp")
+                .arg(format!("allocators/apfmalloc/target/debug/{}", file_name))
+                .arg(dest_path.to_str().unwrap())
+                .status()
+                .unwrap();
+        } else {
+            Command::new("cargo")
+                .arg("build")
+                .arg("--workspace")
+                .arg("--release")
+                .arg("--manifest-path")
+                .arg("allocators/apfmalloc/Cargo.toml")
+                .args(features)
+                .status()
+                .unwrap();
+            let mut dest_path = PathBuf::from(out_dir.to_str().unwrap());
+            dest_path.push(file_name.clone());
+            Command::new("cp")
+                .arg(format!("allocators/apfmalloc/target/release/{}", file_name))
+                .arg(dest_path.to_str().unwrap())
+                .status()
+                .unwrap();
+
         }
     }
 
@@ -584,8 +583,8 @@ fn get_allocator_lib_file(allocator_name: &str) -> Option<&str> {
         "libc" => {
             None
         },
-        "lrmalloc.rs" => {
-            Some("lrmalloc_rs_global")
+        "apfmalloc" => {
+            Some("apfmalloc")
         },
         "jemalloc" => {
             Some("jemalloc")

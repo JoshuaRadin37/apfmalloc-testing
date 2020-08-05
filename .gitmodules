@@ -2,9 +2,9 @@
 	path = allocators/jemalloc
 	url = https://github.com/JoshuaRadin37/jemalloc.git
 	branch = master
-[submodule "allocators/lrmalloc.rs"]
-	path = allocators/lrmalloc.rs
-	url = https://github.com/JoshuaRadin37/lrmalloc.rs.git
+[submodule "allocators/apfmalloc"]
+	path = allocators/apfmalloc
+	url = https://github.com/JoshuaRadin37/apfmalloc.git
 	branch = master
 [submodule "allocators/lrmalloc"]
 	path = allocators/lrmalloc

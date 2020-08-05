@@ -36,7 +36,7 @@ The currently available allocators are:
 - `libc` - the included allocator
 - `jemalloc` - the Google allocator
 - `lrmalloc` - a lock-free allocator designed by Ricardo Leite and Wentao Cai
-- `lrmalloc.rs` - a lock-free allocator this platform was designed to test. It is the 
+- `apfmalloc` - a lock-free allocator this platform was designed to test. It is the 
 `lrmalloc` reimplemented in Rust, with the addition of APF tuning. This project was
 written by Joshua Radin and Elias Neuman-Donihue.
 
@@ -60,7 +60,7 @@ OPTIONS:
     
     -a, --allocator <allocator>...    The allocator(s) to test. If no allocators are specified, all are tested
     -b, --benchmark <benchmark>...    The benchmarks to test. If not benchmarks are specified, all are run
-        --features <features>...         Set features for the lrmalloc.rs build (track_allocation, no_met_stack)
+        --features <features>...         Set features for the apfmalloc build (track_allocation, no_met_stack)
     -t, --threads <threads>           The maximum number of threads to test [default: 16]
 
 SUBCOMMANDS:
@@ -78,7 +78,7 @@ automatically.
 Recommendations for OSs:
 - Linux: Dynamic
     - Doesn't easily support static compilation
-- MacOs: Static or Dynamic
+- MacOs: Static
 - Windows: Unsupported
 
 ## General Flow of the Program

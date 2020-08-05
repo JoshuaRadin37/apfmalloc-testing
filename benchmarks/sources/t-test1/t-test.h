@@ -96,7 +96,7 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 	r %= 1024;
 	/*printf("%d ", r);*/
 	
-	/*
+	
 	if(r < 4) { // memalign
 		if(m->size > 0) free(m->ptr);
 		size_t alignment = sizeof(size_t) << r;
@@ -105,10 +105,11 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 			size += alignment - size % alignment;
 			// printf("Size adjusted to %ld to match aligned allocation requirements\n", size);
 		}
+		// printf("memalign\n");
 		m->ptr = (unsigned char *)memalign(alignment, size);
 	} else if(r < 20) { // calloc
 		if(m->size > 0) free(m->ptr);
-		
+		// printf("calloc\n");
 		m->ptr = (unsigned char *)calloc(size, 1);
 #if TEST > 0
 		if(zero_check((unsigned*)m->ptr, size)) {
@@ -122,12 +123,14 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 #endif
 	} else if(r < 100 && m->size < REALLOC_MAX) { // realloc
 		if(m->size == 0) m->ptr = NULL;
+		// printf("realloc\n");
 		m->ptr = realloc(m->ptr, size);
 	} else { // plain malloc
+		// printf("malloc\n");
 		if(m->size > 0) free(m->ptr);
 		m->ptr = (unsigned char *)malloc(size);
 	}
-	*/
+	
 	/*
 	if(m->size > 0) free(m->ptr);
 	if (r < 4)
@@ -146,8 +149,10 @@ bin_alloc(struct bin *m, unsigned long size, int r)
 		m->ptr = (unsigned char *) malloc(size);
 	}
 	 */
+	/*
 	if(m->size > 0) free(m->ptr);
 	m->ptr = (unsigned char *)malloc(size);
+	 */
 	
 	
 	if(!m->ptr) {

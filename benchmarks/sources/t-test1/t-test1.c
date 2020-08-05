@@ -213,6 +213,7 @@ main(int argc, char *argv[])
 	printf("ptmalloc_init\n");
 #endif
 
+	printf("Getting args\n");
 	if(argc > 1) n_total_max = atoi(argv[1]);
 	if(n_total_max < 1) n_thr = 1;
 	if(argc > 2) n_thr = atoi(argv[2]);
@@ -229,7 +230,9 @@ main(int argc, char *argv[])
 
 	/*protect_stack(n_thr);*/
 
+	printf("Initializing threads...");
 	thread_init();
+	printf(" done.\n");
 	printf("total=%d threads=%d i_max=%d size=%ld bins=%d\n",
 		   n_total_max, n_thr, i_max, size, bins);
 
