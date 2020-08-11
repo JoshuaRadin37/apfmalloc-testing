@@ -34,11 +34,24 @@ the included allocator.
 
 The currently available allocators are:
 - `libc` - the included allocator
-- `jemalloc` - the Google allocator
-- `lrmalloc` - a lock-free allocator designed by Ricardo Leite and Wentao Cai
-- `apfmalloc` - a lock-free allocator this platform was designed to test. It is the 
+- [`jemalloc`] - an advanced allocator originally designed for FreeBSD
+- [`lrmalloc`] - a lock-free allocator designed by Ricardo Leite and Wentao Cai
+- [`apfmalloc`] - a lock-free allocator this platform was designed to test. It is the 
 `lrmalloc` reimplemented in Rust, with the addition of APF tuning. This project was
 written by Joshua Radin and Elias Neuman-Donihue.
+
+[`jemalloc`]: https://github.com/jemalloc/jemalloc
+[`lrmalloc`]: https://github.com/ricleite/lrmalloc
+[`apfmalloc`]: https://github.com/JoshuaRadin37/apfmalloc/
+
+
+### APF Tuning Environment Variables
+
+There are several environment variables that can be set to affect the APF tuner. These are:
+
+    TARGET_APF - The target APF for the allocator (Default: 2500)
+    BURST_LENGTH - The length of traces to use during bursts (Default: 300)
+    HIBERNATION_PERIOD - The time after a burst period where the APF tuner is inactive (Default: 2*BURST_LENGTH)
 
 
 ### Command Line Interface
