@@ -41,6 +41,15 @@ The currently available allocators are:
 written by Joshua Radin and Elias Neuman-Donihue.
 
 
+### APF Tuning Environment Variables
+
+There are several environment variables that can be set to affect the APF tuner. These are:
+
+    TARGET_APF - The target APF for the allocator (Default: 2500)
+    BURST_LENGTH - The length of traces to use during bursts (Default: 300)
+    HIBERNATION_PERIOD - The time after a burst period where the APF tuner is inactive (Default: 2*BURST_LENGTH)
+
+
 ### Command Line Interface
 
 USAGE:
